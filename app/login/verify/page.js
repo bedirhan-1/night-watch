@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/board/shell';
 
 // Bağlantı açılınca oturum hemen açılmaz, düğmeye basmak gerekir:
 // e-posta tarayıcılarının bağlantıyı önceden açıp tek kullanımlık kodu tüketmesini önler.
@@ -31,20 +33,25 @@ export default function Verify() {
   }
 
   return (
-    <div className="login">
-      <h1>
-        Night <span>Watch</span>
-      </h1>
-      <p>Girişi tamamlamak için düğmeye bas.</p>
-      <button className="btn primary" type="button" onClick={confirm} disabled={busy || !token}>
-        {busy ? 'Giriş yapılıyor…' : 'Giriş yap'}
-      </button>
-      <div className="err" role="alert">
-        {error}
+    <main className="flex min-h-dvh items-center justify-center p-4">
+      <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border bg-card p-6 shadow-xl">
+        <div className="flex items-center gap-3">
+          <Logo />
+          <h1 className="text-xl font-semibold">Night Watch</h1>
+        </div>
+        <p className="text-sm text-muted-foreground">Girişi tamamlamak için düğmeye bas.</p>
+        <Button onClick={confirm} disabled={busy || !token}>
+          {busy ? 'Giriş yapılıyor…' : 'Giriş yap'}
+        </Button>
+        {error ? (
+          <p role="alert" className="text-sm text-crit">
+            {error}
+          </p>
+        ) : null}
+        <a href="/login" className="text-[13px] text-link hover:underline">
+          Yeni bağlantı iste
+        </a>
       </div>
-      <a className="back" href="/login">
-        Yeni bağlantı iste
-      </a>
-    </div>
+    </main>
   );
 }

@@ -1,6 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ChevronRight, LogOut, Plus } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { api } from '@/lib/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Logo } from '@/components/board/shell';
 
 // Giriş sonrası ilk ekran: takip edilen projeler. Bir projeye basınca o projenin panosu açılır.
 export default function Projects() {
@@ -9,19 +16,10 @@ export default function Projects() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function load() {
-    const r = await fetch('/api/projects', { cache: 'no-store' });
-    if (r.status === 401) {
-      window.location.href = '/login';
-      return;
-    }
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) setError(j.error || 'Projeler yüklenemedi');
-    else setData(j);
-  }
-
   useEffect(() => {
-    load().catch(() => setError('Sunucuya ulaşılamadı'));
+    api('GET', '/api/projects')
+      .then(setData)
+      .catch((e) => setError(e.message || 'Projeler yüklenemedi'));
   }, []);
 
   async function create(e) {
@@ -30,82 +28,82 @@ export default function Projects() {
     setBusy(true);
     setError('');
     try {
-      const r = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-      const j = await r.json().catch(() => ({}));
-      if (r.ok) {
-        window.location.href = '/p/' + j.id + '#ayarlar';
-        return;
-      }
-      setError(j.error || 'Proje oluşturulamadı');
-    } catch {
-      setError('Sunucuya ulaşılamadı');
+      const j = await api('POST', '/api/projects', { name });
+      window.location.href = `/p/${j.id}#ayarlar`;
+    } catch (err) {
+      setError(err.message || 'Proje oluşturulamadı');
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    await api('POST', '/api/auth/logout', {}).catch(() => {});
     window.location.href = '/login';
   }
 
   const projects = data ? data.projects : [];
   return (
-    <div className="wrap">
-      <header className="top">
-        <div className="brand">
-          <h1>
-            Night <span>Watch</span>
-          </h1>
-          <small>{data ? data.user.email : 'Projeler'}</small>
+    <div className="min-h-dvh">
+      <header className="flex h-14 items-center justify-between gap-3 border-b bg-chrome px-4 lg:px-6">
+        <div className="flex items-center gap-3">
+          <Logo />
+          <div className="leading-tight">
+            <div className="text-[15px] font-semibold">Night Watch</div>
+            <div className="text-xs text-muted-foreground">{data ? data.user.email : 'Projeler'}</div>
+          </div>
         </div>
-        <button className="btn ghost" type="button" onClick={logout}>
-          Çıkış yap
-        </button>
+        <Button variant="ghost" onClick={logout}>
+          <LogOut /> Çıkış yap
+        </Button>
       </header>
 
-      {error ? <div className="notice">{error}</div> : null}
-
-      {!data && !error ? <div className="empty">Projeler yükleniyor…</div> : null}
-
-      {data && !projects.length ? (
-        <div className="empty">{data.user.admin ? 'Henüz proje yok. Aşağıdan ilk projeni ekle.' : 'Üyesi olduğun bir proje yok.'}</div>
-      ) : null}
-
-      <div className="pgrid">
-        {projects.map((p) => (
-          <a key={p.id} className={'card' + (p.critical ? ' p-kritik' : p.late ? ' p-yuksek' : ' p-orta')} href={'/p/' + p.id}>
-            <span className="t">{p.name}</span>
-            <span className="meta">
-              <span className="chip">{p.open} açık</span>
-              {p.critical ? <span className="chip p-kritik">{p.critical} kritik</span> : null}
-              {p.late ? <span className="chip late">{p.late} geciken</span> : null}
-              {p.reminders ? <span className="chip p-yuksek">{p.reminders} hatırlatma</span> : null}
-              {p.failing ? <span className="chip bad">{p.failing} servis hatası</span> : null}
-            </span>
-          </a>
-        ))}
-      </div>
-
-      {data && data.user.admin ? (
-        <form className="sec" onSubmit={create}>
-          <h3>Yeni proje</h3>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input
-              id="new-project"
-              className="field"
-              style={{ flex: '1 1 220px' }}
-              type="text"
-              placeholder="Proje adı, örn. Bikort"
-              aria-label="Proje adı"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <button className="btn primary" type="submit" disabled={busy}>
-              {busy ? 'Ekleniyor…' : 'Proje ekle'}
-            </button>
+      <main className="mx-auto flex max-w-4xl flex-col gap-5 p-4 lg:p-8">
+        <h1 className="text-xl font-semibold">Projeler</h1>
+        {error ? <div className="rounded-md border border-crit/50 bg-crit/10 px-3.5 py-2.5 text-sm text-crit">{error}</div> : null}
+        {!data && !error ? <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">Projeler yükleniyor…</div> : null}
+        {data && !projects.length ? (
+          <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            {data.user.admin ? 'Henüz proje yok. Aşağıdan ilk projeni ekle.' : 'Üyesi olduğun bir proje yok.'}
           </div>
-        </form>
-      ) : null}
+        ) : null}
+
+        {projects.length ? (
+          <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+            {projects.map((p) => (
+              <li key={p.id}>
+                <a href={`/p/${p.id}`} className="flex items-center gap-3 px-4 py-3.5 outline-none transition-colors hover:bg-muted/40 focus-visible:bg-muted/40">
+                  <span className={cn('h-9 w-1 shrink-0 rounded-full', p.critical ? 'bg-crit' : p.late ? 'bg-high' : 'bg-primary')} />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <span className="truncate text-[15px] font-medium">{p.name}</span>
+                    <span className="flex flex-wrap gap-1.5">
+                      <Badge>{p.open} açık</Badge>
+                      {p.critical ? <Badge variant="crit">{p.critical} kritik</Badge> : null}
+                      {p.late ? <Badge variant="solid">{p.late} geciken</Badge> : null}
+                      {p.reminders ? <Badge variant="high">{p.reminders} hatırlatma</Badge> : null}
+                      {p.failing ? <Badge variant="crit">{p.failing} servis hatası</Badge> : null}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {data && data.user.admin ? (
+          <form onSubmit={create} className="flex flex-col gap-2">
+            <label htmlFor="new-project" className="text-sm font-semibold">
+              Yeni proje
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Input id="new-project" className="min-w-52 flex-1" placeholder="Proje adı, örn. Bikort" value={name} onChange={(e) => setName(e.target.value)} />
+              <Button type="submit" disabled={busy}>
+                <Plus /> {busy ? 'Ekleniyor…' : 'Proje ekle'}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </main>
     </div>
   );
 }

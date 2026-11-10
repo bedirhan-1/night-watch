@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Logo } from '@/components/board/shell';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -24,26 +27,33 @@ export default function Login() {
   }
 
   return (
-    <form className="login" onSubmit={submit}>
-      <h1>
-        Night <span>Watch</span>
-      </h1>
-      {sent ? (
-        <p>Bu adresin erişimi varsa giriş bağlantısı gönderildi. Bağlantı 15 dakika geçerli; gelen kutunu kontrol et.</p>
-      ) : (
-        <>
-          <label htmlFor="email" className="muted small">
-            E-posta adresin
-          </label>
-          <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-          <button className="btn primary" type="submit" disabled={busy}>
-            {busy ? 'Gönderiliyor…' : 'Giriş bağlantısı gönder'}
-          </button>
-        </>
-      )}
-      <div className="err" role="alert">
-        {error}
-      </div>
-    </form>
+    <main className="flex min-h-dvh items-center justify-center p-4">
+      <form onSubmit={submit} className="flex w-full max-w-sm flex-col gap-4 rounded-xl border bg-card p-6 shadow-xl">
+        <div className="flex items-center gap-3">
+          <Logo />
+          <h1 className="text-xl font-semibold">Night Watch</h1>
+        </div>
+        {sent ? (
+          <p className="text-sm text-muted-foreground">Bu adresin erişimi varsa giriş bağlantısı gönderildi. Bağlantı 15 dakika geçerli; gelen kutunu kontrol et.</p>
+        ) : (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                E-posta adresin
+              </label>
+              <Input id="email" type="email" autoComplete="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Gönderiliyor…' : 'Giriş bağlantısı gönder'}
+            </Button>
+          </>
+        )}
+        {error ? (
+          <p role="alert" className="text-sm text-crit">
+            {error}
+          </p>
+        ) : null}
+      </form>
+    </main>
   );
 }

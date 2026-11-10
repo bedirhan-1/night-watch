@@ -38,6 +38,7 @@ export async function GET(_req, { params }) {
       reminders: reminders.map(toCamel),
       meta: {
         admin: g.user.admin,
+        user: g.user.email,
         mailConfigured: !!process.env.RESEND_API_KEY,
         project: g.user.admin
           ? { id: p.id, name: p.name, notifyEmail: p.notify_email, defaultOwner: p.default_owner, members: p.members }
