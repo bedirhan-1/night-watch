@@ -37,13 +37,13 @@ export async function GET(_req, { params }) {
       decisions: decisions.map(toCamel),
       reminders: reminders.map(toCamel),
       meta: {
-        admin: g.user.admin,
+        admin: g.owner,
         user: g.user.email,
         mailConfigured: !!process.env.RESEND_API_KEY,
-        project: g.user.admin
-          ? { id: p.id, name: p.name, notifyEmail: p.notify_email, defaultOwner: p.default_owner, members: p.members }
-          : { id: p.id, name: p.name },
-        credentials: g.user.admin ? publicView(creds) : null,
+        project: g.owner
+          ? { id: p.id, name: p.name, notifyEmail: p.notify_email, defaultOwner: p.default_owner, members: p.members, owner: p.owner_email }
+          : { id: p.id, name: p.name, owner: p.owner_email },
+        credentials: g.owner ? publicView(creds) : null,
         services,
       },
     });

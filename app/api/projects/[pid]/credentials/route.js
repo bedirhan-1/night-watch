@@ -7,7 +7,7 @@ import { decrypt, encrypt, ALL_KEYS, SERVICE_KEYS } from '@/lib/creds';
 // { clear: "vercel" } o servisin tüm bilgilerini siler.
 export async function PUT(req, { params }) {
   const { pid } = await params;
-  const g = await guard(pid, { adminOnly: true });
+  const g = await guard(pid, { ownerOnly: true });
   if (g.error) return g.error;
   const body = await req.json().catch(() => ({}));
   try {

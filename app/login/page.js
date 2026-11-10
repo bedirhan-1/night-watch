@@ -34,7 +34,7 @@ export default function Login() {
           <h1 className="text-xl font-semibold">Night Watch</h1>
         </div>
         {sent ? (
-          <p className="text-sm text-muted-foreground">Bu adresin erişimi varsa giriş bağlantısı gönderildi. Bağlantı 15 dakika geçerli; gelen kutunu kontrol et.</p>
+          <p className="text-sm text-muted-foreground">Giriş bağlantısı gönderildi. Bağlantı 15 dakika geçerli; gelen kutunu kontrol et. İlk girişinde hesabın kendiliğinden açılır.</p>
         ) : (
           <>
             <div className="flex flex-col gap-1.5">

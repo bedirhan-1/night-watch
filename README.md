@@ -4,7 +4,7 @@ Birden çok projenin geliştirme ve operasyon kayıtlarını tek yerden takip ed
 
 ## Nasıl çalışır
 
-1. E-posta adresini yazarsın, gelen bağlantıyla giriş yaparsın (şifre yok).
+1. E-posta adresini yazarsın, gelen bağlantıyla giriş yaparsın (şifre yok; ilk girişte hesap açılır).
 2. Proje listesinden bir proje seçersin ya da yenisini eklersin.
 3. Projenin panosu açılır: Kanban, Liste, Zaman çizelgesi, Haftalık özet, Kararlar, Hatırlatmalar, Ayarlar.
 4. Ayarlar sekmesinde o projenin servis token'larını, bildirim adresini ve üyelerini girersin.
@@ -13,18 +13,20 @@ Birden çok projenin geliştirme ve operasyon kayıtlarını tek yerden takip ed
 
 1. Bu depoyu Vercel'de yeni proje olarak içe aktar.
 2. Proje > Storage > **Neon** ekle. `DATABASE_URL` otomatik tanımlanır. Tablolar ilk açılışta kendiliğinden oluşur.
-3. Proje > Settings > Environment Variables altında `.env.example` içindeki zorunlu değişkenleri gir: `ADMIN_EMAILS`, `ENCRYPTION_KEY`, `CRON_SECRET`, `RESEND_API_KEY`.
-4. Yeniden deploy et, siteyi aç, `ADMIN_EMAILS` içindeki adresinle giriş bağlantısı iste.
+3. Proje > Settings > Environment Variables altında `.env.example` içindeki zorunlu değişkenleri gir: `ENCRYPTION_KEY`, `CRON_SECRET`, `RESEND_API_KEY`.
+4. Yeniden deploy et, siteyi aç, e-posta adresinle giriş bağlantısı iste.
 5. İlk projeni ekle, Ayarlar sekmesinden servisleri bağla, "Şimdi kontrol et" ile dene.
 
-Resend'de alan adı doğrulanmadıysa mailler yalnızca Resend hesabının kendi e-postasına gider. Bu yüzden ilk kurulumda `ADMIN_EMAILS` Resend hesabının adresi olmalı; başka adreslere göndermek için Resend'de alan adı doğrula ve `MAIL_FROM` tanımla.
+Resend'de alan adı doğrulanmadıysa mailler yalnızca Resend hesabının kendi e-postasına gider. Herkesin giriş yapabilmesi için Resend'de alan adı doğrula ve `MAIL_FROM` tanımla.
 
-## Yetkiler
+## Hesaplar ve yetkiler
 
-- **Yönetici** (`ADMIN_EMAILS`): tüm projeleri görür, proje ekler ve siler, token ve üye girer.
-- **Üye** (projenin Ayarlar > Üyeler alanındaki adresler): yalnızca o projeyi görür, kayıt ekleyip düzenler; token'ları ve ayarları göremez.
+Kayıt herkese açıktır: giriş ekranına adresini yazan herkese bağlantı gider ve ilk girişte hesabı oluşur. Herkes yalnızca kendi projelerini görür.
 
-Bu iki listede olmayan adreslere giriş bağlantısı gönderilmez.
+- **Sahip** (projeyi açan kişi): ayarları, servis token'larını ve üyeleri yönetir, projeyi siler.
+- **Üye** (projenin Ayarlar > Üyeler alanındaki adresler): o projeyi görür, kayıt ekleyip düzenler; token'ları ve ayarları göremez.
+
+Giriş bağlantıları sınırlıdır: adres başına dakikada 1 ve saatte 5, tüm uygulama için günde `DAILY_LOGIN_MAILS` (varsayılan 80). Bu sınır Resend kotasını ve gönderen itibarını korur.
 
 ## Servis token'ları
 

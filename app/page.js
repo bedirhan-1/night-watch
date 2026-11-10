@@ -63,7 +63,7 @@ export default function Projects() {
         {!data && !error ? <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">Projeler yükleniyor…</div> : null}
         {data && !projects.length ? (
           <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            {data.user.admin ? 'Henüz proje yok. Aşağıdan ilk projeni ekle.' : 'Üyesi olduğun bir proje yok.'}
+            Henüz proje yok. Aşağıdan ilk projeni ekle.
           </div>
         ) : null}
 
@@ -76,6 +76,7 @@ export default function Projects() {
                   <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <span className="truncate text-[15px] font-medium">{p.name}</span>
                     <span className="flex flex-wrap gap-1.5">
+                      {p.owner ? null : <Badge variant="primary">üye</Badge>}
                       <Badge>{p.open} açık</Badge>
                       {p.critical ? <Badge variant="crit">{p.critical} kritik</Badge> : null}
                       {p.late ? <Badge variant="solid">{p.late} geciken</Badge> : null}
@@ -90,7 +91,7 @@ export default function Projects() {
           </ul>
         ) : null}
 
-        {data && data.user.admin ? (
+        {data ? (
           <form onSubmit={create} className="flex flex-col gap-2">
             <label htmlFor="new-project" className="text-sm font-semibold">
               Yeni proje

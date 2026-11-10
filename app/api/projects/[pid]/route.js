@@ -6,7 +6,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function PUT(req, { params }) {
   const { pid } = await params;
-  const g = await guard(pid, { adminOnly: true });
+  const g = await guard(pid, { ownerOnly: true });
   if (g.error) return g.error;
   const body = await req.json().catch(() => ({}));
   const name = String(body.name || '').trim().slice(0, 80);
@@ -27,7 +27,7 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(_req, { params }) {
   const { pid } = await params;
-  const g = await guard(pid, { adminOnly: true });
+  const g = await guard(pid, { ownerOnly: true });
   if (g.error) return g.error;
   try {
     const q = sql();
