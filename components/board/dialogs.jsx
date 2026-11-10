@@ -41,7 +41,7 @@ const full = 'sm:col-span-2';
 
 function RecordForm({ item, owners, areas, onSave, onDelete, onClose }) {
   const [form, bind, pick] = useForm(
-    item || { title: '', category: 'ci', area: '', owner: '', status: 'acik', priority: 'orta', env: 'production', sourceUrl: '', createdAt: today(), dueDate: '', errorMessage: '', expectedFix: '', nextAction: '', resolvedAt: '' },
+    item || { title: '', category: 'gorev', area: '', owner: '', status: 'acik', priority: 'orta', env: 'production', sourceUrl: '', createdAt: today(), dueDate: '', errorMessage: '', expectedFix: '', nextAction: '', resolvedAt: '' },
   );
   const [error, setError] = useState('');
   const url = safeUrl(form.sourceUrl);
@@ -57,7 +57,7 @@ function RecordForm({ item, owners, areas, onSave, onDelete, onClose }) {
   return (
     <form className={grid} onSubmit={submit} noValidate>
       <Field label="Başlık" htmlFor="rec-title" className={full}>
-        <Input id="rec-title" placeholder="Örn. main dalında Vercel derlemesi düşüyor" autoFocus={!item} {...bind('title')} />
+        <Input id="rec-title" placeholder="Örn. Ödeme sayfasındaki 500 hatasını düzelt" autoFocus={!item} {...bind('title')} />
         {error ? <span className="text-xs text-crit">{error}</span> : null}
       </Field>
       <Field label="Kategori" htmlFor="rec-category">

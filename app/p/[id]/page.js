@@ -99,6 +99,8 @@ export default function Board() {
     return c;
   }, [records]);
   const list = useMemo(() => applyFilters(records, preset, filters), [records, preset, filters]);
+  // Kanban'da "Çözülmemiş" görünümü Çözüldü sütununu boşaltmasın diye tüm kayıtlar gösterilir.
+  const kanbanList = useMemo(() => applyFilters(records, preset === 'open' ? 'all' : preset, filters), [records, preset, filters]);
   const owners = useMemo(() => uniq(records, 'owner'), [records]);
   const areas = useMemo(() => uniq(records, 'area'), [records]);
   const t = today();
@@ -111,6 +113,18 @@ export default function Board() {
     if (patch.status) body.resolvedAt = patch.status === 'cozuldu' ? r.resolvedAt || today() : '';
     return run(() => api('PUT', `${base}/data/records/${r.id}`, body));
   };
+  const quickAdd = (status, title) =>
+    run(() =>
+      api('POST', `${base}/data/records`, {
+        title,
+        status,
+        category: preset.startsWith('cat:') ? preset.slice(4) : 'gorev',
+        priority: 'orta',
+        owner: (meta.project && meta.project.defaultOwner) || '',
+        createdAt: today(),
+        resolvedAt: status === 'cozuldu' ? today() : '',
+      }),
+    );
   const save = async (table, body, rowId) => {
     setDialog(null);
     await run(() => api(rowId ? 'PUT' : 'POST', `${base}/data/${table}${rowId ? '/' + rowId : ''}`, body));
@@ -171,10 +185,10 @@ export default function Board() {
         }}
       />
     );
+  } else if (view === 'kanban') {
+    body = <KanbanView list={kanbanList} sort={sort} onOpen={openRecord} onPatch={patchRecord} onQuickAdd={quickAdd} />;
   } else if (!records.length) {
     body = <Empty>Henüz kayıt yok. “Kayıt” düğmesiyle ilkini ekle ya da Ayarlar’dan bir servis bağlayıp “Şimdi kontrol et”e bas.</Empty>;
-  } else if (view === 'kanban') {
-    body = <KanbanView list={list} sort={sort} onOpen={openRecord} onPatch={patchRecord} />;
   } else if (view === 'zaman') {
     body = <TimelineView list={list} onOpen={openRecord} />;
   } else {

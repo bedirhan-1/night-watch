@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Search, X } from 'lucide-react';
+import { CalendarDays, Check, Plus, Search, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Pick, Empty, Avatar, PriorityBadge, StatusBadge, LateBadge, SourceBadge, QuickMenu, priorityStripe } from './bits';
@@ -151,9 +152,9 @@ export function IssueTable({ list, sort, onOpen, onPatch }) {
   );
 }
 
-function Card({ r, onOpen, onAdvance }) {
-  const i = ST.findIndex((s) => s[0] === r.status);
-  const next = ST[i + 1];
+function Card({ r, onOpen, onPatch }) {
+  const [dragging, setDragging] = useState(false);
+  const done = isDone(r);
   return (
     <div
       role="button"
@@ -162,68 +163,145 @@ function Card({ r, onOpen, onAdvance }) {
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', r.id);
         e.dataTransfer.effectAllowed = 'move';
+        setDragging(true);
       }}
+      onDragEnd={() => setDragging(false)}
       onClick={() => onOpen(r)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
           onOpen(r);
         }
       }}
       className={cn(
-        'relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-md border bg-chrome py-2.5 pl-4 pr-3 outline-none hover:border-primary focus-visible:ring-2 focus-visible:ring-ring',
+        'group relative flex cursor-grab flex-col gap-2 overflow-hidden rounded-md border bg-chrome py-2.5 pl-4 pr-3 outline-none hover:border-primary focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing',
         isLate(r) && 'border-crit/70',
-        isDone(r) && 'opacity-70',
+        done && 'opacity-70',
+        dragging && 'opacity-40',
       )}
     >
       <span className={cn('absolute inset-y-0 left-0 w-1', priorityStripe(r))} />
-      <span className="break-words text-sm font-medium leading-snug">{r.title}</span>
-      <span className="flex flex-wrap gap-1.5">
-        <LateBadge record={r} />
-        <PriorityBadge priority={r.priority} />
-        <SourceBadge record={r} />
+      <span className="flex items-start gap-2">
+        <button
+          type="button"
+          aria-label={done ? 'Yeniden aç' : 'Çözüldü olarak işaretle'}
+          title={done ? 'Yeniden aç' : 'Çözüldü olarak işaretle'}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPatch(r, { status: done ? 'acik' : 'cozuldu' });
+          }}
+          className={cn(
+            'mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            done ? 'border-done bg-done/20 text-done' : 'border-input text-transparent hover:border-done hover:text-done',
+          )}
+        >
+          <Check className="size-3" />
+        </button>
+        <span className={cn('min-w-0 flex-1 break-words text-sm font-medium leading-snug', done && 'line-through decoration-muted-foreground/60')}>{r.title}</span>
       </span>
-      {r.nextAction && !isDone(r) ? (
+      {isLate(r) || r.source !== 'manual' || r.category !== 'gorev' ? (
+        <span className="flex flex-wrap gap-1.5">
+          <LateBadge record={r} />
+          <SourceBadge record={r} />
+          {r.category !== 'gorev' ? <Badge>{label(CAT, r.category)}</Badge> : null}
+        </span>
+      ) : null}
+      {r.nextAction && !done ? (
         <span className="break-words text-[13px] text-muted-foreground">
           <span className="font-medium text-link">Sonraki:</span> {r.nextAction}
         </span>
       ) : null}
-      <span className="flex items-center justify-between gap-2">
+      <span className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <Avatar name={r.owner} className="size-6 text-[10px]" />
-          <span className="truncate">{label(CAT, r.category)}</span>
+          {r.dueDate && !done ? (
+            <span className={cn('inline-flex items-center gap-1 tabular-nums', isLate(r) && 'font-medium text-crit')}>
+              <CalendarDays className="size-3.5" />
+              {fmt(r.dueDate)}
+            </span>
+          ) : null}
         </span>
-        {next ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-xs text-link"
-            title={next[1] + ' sütununa taşı'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdvance(r, next[0]);
-            }}
-          >
-            {next[1]} <ArrowRight />
-          </Button>
-        ) : null}
+        <span className="flex items-center gap-1.5">
+          <QuickMenu kind="priority" value={r.priority} onChange={(v) => onPatch(r, { priority: v })} />
+          <QuickMenu kind="status" value={r.status} onChange={(v) => onPatch(r, { status: v })} />
+        </span>
       </span>
     </div>
   );
 }
 
-export function KanbanView({ list, sort, onOpen, onPatch }) {
-  const [over, setOver] = useState('');
+// Sütunun altındaki hızlı ekleme: başlığı yaz, Enter'a bas; art arda eklemek için açık kalır.
+function QuickAdd({ status, onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(e) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t || busy) return;
+    setBusy(true);
+    const ok = await onAdd(status, t);
+    setBusy(false);
+    if (ok) setTitle('');
+  }
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Plus className="size-4" /> Görev ekle
+      </button>
+    );
+  }
   return (
-    <div className="no-scrollbar -mx-4 grid auto-cols-[min(84%,300px)] grid-flow-col gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-4 lg:overflow-visible lg:px-0">
+    <form onSubmit={submit} className="flex flex-col gap-2 rounded-md border border-primary/60 bg-chrome p-2">
+      <textarea
+        autoFocus
+        rows={2}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) submit(e);
+          if (e.key === 'Escape') setOpen(false);
+        }}
+        placeholder="Ne yapılacak?"
+        aria-label="Yeni görev başlığı"
+        className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] text-muted-foreground">Enter ekler, Esc kapatır</span>
+        <div className="flex gap-1.5">
+          <Button variant="ghost" size="sm" className="h-7" onClick={() => setOpen(false)}>
+            Kapat
+          </Button>
+          <Button type="submit" size="sm" className="h-7" disabled={busy || !title.trim()}>
+            Ekle
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+const DONE_LIMIT = 8;
+
+export function KanbanView({ list, sort, onOpen, onPatch, onQuickAdd }) {
+  const [over, setOver] = useState('');
+  const [allDone, setAllDone] = useState(false);
+  return (
+    <div className="no-scrollbar -mx-4 grid auto-cols-[min(86%,320px)] grid-flow-col items-start gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-4 lg:overflow-visible lg:px-0">
       {ST.map(([key, text]) => {
-        const items = sortRecs(list.filter((r) => r.status === key), sort);
+        const all = sortRecs(list.filter((r) => r.status === key), key === 'cozuldu' ? 'guncel' : sort);
+        const items = key === 'cozuldu' && !allDone ? all.slice(0, DONE_LIMIT) : all;
         return (
           <section
             key={key}
             onDragOver={(e) => {
               e.preventDefault();
-              setOver(key);
+              e.dataTransfer.dropEffect = 'move';
+              if (over !== key) setOver(key);
             }}
             onDragLeave={(e) => {
               if (!e.currentTarget.contains(e.relatedTarget)) setOver('');
@@ -235,13 +313,22 @@ export function KanbanView({ list, sort, onOpen, onPatch }) {
               const r = list.find((x) => x.id === id);
               if (r && r.status !== key) onPatch(r, { status: key });
             }}
-            className={cn('flex min-h-40 flex-col gap-2 rounded-lg border bg-card p-2.5', over === key && 'border-primary bg-accent/20')}
+            className={cn('flex min-h-44 flex-col gap-2 rounded-lg border bg-card p-2.5 transition-colors', over === key && 'border-primary bg-accent/25')}
           >
             <h3 className="flex items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {text}
-              <span className="tabular-nums">{items.length}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 tabular-nums">{all.length}</span>
             </h3>
-            {items.length ? items.map((r) => <Card key={r.id} r={r} onOpen={onOpen} onAdvance={(rec, to) => onPatch(rec, { status: to })} />) : <Empty className="py-5">Kayıt yok</Empty>}
+            {items.map((r) => (
+              <Card key={r.id} r={r} onOpen={onOpen} onPatch={onPatch} />
+            ))}
+            {all.length > items.length ? (
+              <button type="button" onClick={() => setAllDone(true)} className="rounded-md px-2 py-1.5 text-left text-[13px] text-link outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+                {all.length - items.length} kayıt daha göster
+              </button>
+            ) : null}
+            {!all.length && over !== key ? <p className="px-2 py-3 text-center text-[13px] text-muted-foreground/80">Buraya kart sürükle ya da görev ekle</p> : null}
+            <QuickAdd status={key} onAdd={onQuickAdd} />
           </section>
         );
       })}
