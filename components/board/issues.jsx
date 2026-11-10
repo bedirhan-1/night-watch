@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarDays, Check, Plus, Search, X } from 'lucide-react';
+import { CalendarDays, Check, ListChecks, Plus, Search, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { usePeople, ownerLabel, Pick, Empty, Avatar, PriorityBadge, StatusBadge, LateBadge, SourceBadge, QuickMenu, priorityStripe } from './bits';
-import { ST, PR, CAT, SORTS, label, uniq, sortRecs, isDone, isLate, fmt, ago, day, today, presetLabel } from '@/lib/board';
+import { ST, PR, CAT, SORTS, label, uniq, sortRecs, isDone, isLate, fmt, ago, day, today, presetLabel, checklistProgress } from '@/lib/board';
 
 const seg = 'h-10 w-auto min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 font-medium shadow-none sm:flex-none';
 
@@ -141,6 +141,7 @@ export function IssueTable({ list, sort, onOpen, onPatch }) {
                 <QuickMenu kind="status" value={r.status} onChange={(v) => onPatch(r, { status: v })} />
               </span>
               <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground lg:ml-0 lg:justify-end">
+                <Progress record={r} />
                 <span className="lg:hidden">{ago(r.updatedAt)}</span>
                 <Avatar name={r.owner} />
               </span>
@@ -150,6 +151,18 @@ export function IssueTable({ list, sort, onOpen, onPatch }) {
       </ul>
       <div className="border-t bg-chrome/40 px-4 py-2 text-right text-[13px] tabular-nums text-muted-foreground">{rows.length} kayıt</div>
     </div>
+  );
+}
+
+// Madde listesindeki ilerleme, örn. 2/5.
+function Progress({ record }) {
+  const p = checklistProgress(record.expectedFix);
+  if (!p.total) return null;
+  return (
+    <span className={cn('inline-flex items-center gap-1 tabular-nums', p.done === p.total && 'text-done')} title="Tamamlanan madde">
+      <ListChecks className="size-3.5" />
+      {p.done}/{p.total}
+    </span>
   );
 }
 
@@ -221,6 +234,7 @@ function Card({ r, onOpen, onPatch }) {
               {fmt(r.dueDate)}
             </span>
           ) : null}
+          <Progress record={r} />
         </span>
         <span className="flex items-center gap-1.5">
           <QuickMenu kind="priority" value={r.priority} onChange={(v) => onPatch(r, { priority: v })} />

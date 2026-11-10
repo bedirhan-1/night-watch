@@ -1,18 +1,119 @@
 'use client';
 
-import { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ExternalLink, Plus, X } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Pick, Field, OwnerPick, useMe } from './bits';
-import { ST, PR, CAT, ENV, DST, today, day, fmtTime, safeUrl } from '@/lib/board';
+import { ST, PR, CAT, ENV, DST, today, day, fmtTime, safeUrl, parseChecklist, serializeChecklist } from '@/lib/board';
 
 function useForm(initial) {
   const [form, setForm] = useState(initial);
   const bind = (k) => ({ value: form[k] || '', onChange: (e) => setForm((f) => ({ ...f, [k]: e.target.value })) });
   const pick = (k) => ({ value: form[k] || '', onChange: (v) => setForm((f) => ({ ...f, [k]: v })) });
   return [form, bind, pick];
+}
+
+// Madde listesi düzenleyici. Enter yeni madde açar, boş maddede Backspace onu siler,
+// çok satırlı metin yapıştırılırsa her satır ayrı madde olur.
+function Checklist({ value, onChange }) {
+  const [items, setItems] = useState(() => {
+    const parsed = parseChecklist(value);
+    return parsed.length ? parsed : [{ done: false, text: '' }];
+  });
+  const refs = useRef([]);
+  const focusAt = useRef(-1);
+  useEffect(() => {
+    if (focusAt.current >= 0 && refs.current[focusAt.current]) refs.current[focusAt.current].focus();
+    focusAt.current = -1;
+  });
+  const commit = (next, focus = -1) => {
+    const list = next.length ? next : [{ done: false, text: '' }];
+    focusAt.current = focus;
+    setItems(list);
+    onChange(serializeChecklist(list));
+  };
+  const setAt = (i, patch) => commit(items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
+  const insertAfter = (i) => commit([...items.slice(0, i + 1), { done: false, text: '' }, ...items.slice(i + 1)], i + 1);
+  const removeAt = (i) => commit(items.filter((_, j) => j !== i), Math.max(0, i - 1));
+  const done = items.filter((i) => i.done && i.text.trim()).length;
+  const total = items.filter((i) => i.text.trim()).length;
+  return (
+    <div className="rounded-md border border-input bg-chrome">
+      {total ? (
+        <div className="flex items-center gap-2.5 border-b px-3 py-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.round((done / total) * 100)}%` }} />
+          </div>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {done}/{total}
+          </span>
+        </div>
+      ) : null}
+      <ul className="flex flex-col py-1">
+        {items.map((it, i) => (
+          <li key={i} className="group flex items-center gap-2 px-2.5 py-0.5">
+            <button
+              type="button"
+              aria-label={it.done ? 'Tamamlanmadı olarak işaretle' : 'Tamamlandı olarak işaretle'}
+              aria-pressed={it.done}
+              onClick={() => setAt(i, { done: !it.done })}
+              className={cn(
+                'flex size-[18px] shrink-0 items-center justify-center rounded border outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                it.done ? 'border-primary bg-primary text-primary-foreground' : 'border-input hover:border-ring',
+              )}
+            >
+              {it.done ? <Check className="size-3" /> : null}
+            </button>
+            <input
+              ref={(el) => (refs.current[i] = el)}
+              value={it.text}
+              aria-label={`Madde ${i + 1}`}
+              placeholder={i === 0 ? 'İlk adımı yaz, Enter ile yenisini ekle' : 'Madde'}
+              onChange={(e) => setAt(i, { text: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (it.text.trim()) insertAfter(i);
+                } else if (e.key === 'Backspace' && !it.text && items.length > 1) {
+                  e.preventDefault();
+                  removeAt(i);
+                }
+              }}
+              onPaste={(e) => {
+                const lines = e.clipboardData.getData('text').split('\n').map((l) => l.trim()).filter(Boolean);
+                if (lines.length < 2) return;
+                e.preventDefault();
+                const added = parseChecklist(lines.join('\n'));
+                const head = it.text.trim() ? [it] : [];
+                commit([...items.slice(0, i), ...head, ...added, ...items.slice(i + 1)]);
+              }}
+              className={cn('h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60', it.done && 'text-muted-foreground line-through')}
+            />
+            {items.length > 1 || it.text ? (
+              <button
+                type="button"
+                aria-label="Maddeyi sil"
+                onClick={() => removeAt(i)}
+                className="rounded p-1 text-muted-foreground opacity-60 outline-none hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={() => insertAfter(items.length - 1)}
+        className="flex w-full items-center gap-1.5 border-t px-3 py-2 text-left text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Plus className="size-3.5" /> Madde ekle
+      </button>
+    </div>
+  );
 }
 
 function Footer({ id, onDelete, onClose }) {
@@ -51,6 +152,7 @@ function RecordForm({ item, areas, onSave, onDelete, onClose }) {
     if (!String(form.title || '').trim()) return setError('Başlık gerekli.');
     const d = {};
     ['title', 'category', 'status', 'priority', 'env', 'owner', 'area', 'sourceUrl', 'errorMessage', 'expectedFix', 'nextAction', 'dueDate'].forEach((k) => (d[k] = String(form[k] || '').trim()));
+    d.expectedFix = serializeChecklist(parseChecklist(d.expectedFix));
     d.createdAt = day(form.createdAt) || today();
     d.resolvedAt = d.status === 'cozuldu' ? day(form.resolvedAt) || today() : '';
     onSave(d, item && item.id);
@@ -90,8 +192,8 @@ function RecordForm({ item, areas, onSave, onDelete, onClose }) {
       <Field label="Hata mesajı" htmlFor="rec-error" className={full}>
         <Textarea id="rec-error" className="font-mono text-[13px]" {...bind('errorMessage')} />
       </Field>
-      <Field label="Beklenen çözüm" htmlFor="rec-fix" className={full}>
-        <Textarea id="rec-fix" {...bind('expectedFix')} />
+      <Field label="Beklenen çözüm: yapılacaklar" className={full}>
+        <Checklist {...pick('expectedFix')} />
       </Field>
       <Field label="Sonraki aksiyon" htmlFor="rec-next" className={full}>
         <Input id="rec-next" {...bind('nextAction')} />
