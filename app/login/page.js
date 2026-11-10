@@ -3,8 +3,9 @@
 import { useState } from 'react';
 
 export default function Login() {
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {
@@ -12,13 +13,10 @@ export default function Login() {
     setBusy(true);
     setError('');
     try {
-      const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
-      if (r.ok) {
-        window.location.href = '/';
-        return;
-      }
+      const r = await fetch('/api/auth/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
       const j = await r.json().catch(() => ({}));
-      setError(j.error || 'Giriş yapılamadı');
+      if (r.ok) setSent(true);
+      else setError(j.error || 'Bağlantı gönderilemedi');
     } catch {
       setError('Sunucuya ulaşılamadı');
     }
@@ -28,15 +26,21 @@ export default function Login() {
   return (
     <form className="login" onSubmit={submit}>
       <h1>
-        Bikort <span>Operasyon</span>
+        Night <span>Watch</span>
       </h1>
-      <label htmlFor="password" className="muted small">
-        Şifre
-      </label>
-      <input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
-      <button className="btn primary" type="submit" disabled={busy}>
-        {busy ? 'Giriş yapılıyor…' : 'Giriş yap'}
-      </button>
+      {sent ? (
+        <p>Bu adresin erişimi varsa giriş bağlantısı gönderildi. Bağlantı 15 dakika geçerli; gelen kutunu kontrol et.</p>
+      ) : (
+        <>
+          <label htmlFor="email" className="muted small">
+            E-posta adresin
+          </label>
+          <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+          <button className="btn primary" type="submit" disabled={busy}>
+            {busy ? 'Gönderiliyor…' : 'Giriş bağlantısı gönder'}
+          </button>
+        </>
+      )}
       <div className="err" role="alert">
         {error}
       </div>

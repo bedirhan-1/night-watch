@@ -1,20 +1,23 @@
 import { NextResponse } from 'next/server';
-import { sql, ensureSchema } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { guard, fail } from '@/lib/auth';
 import { pick } from '@/lib/crud';
 import { toCamel } from '@/lib/util';
 
 export async function POST(req, { params }) {
-  const { table } = await params;
+  const { pid, table } = await params;
+  const g = await guard(pid);
+  if (g.error) return g.error;
   const data = pick(table, await req.json().catch(() => ({})));
   if (!data) return NextResponse.json({ error: 'Bilinmeyen tablo' }, { status: 404 });
   if (!data.title) return NextResponse.json({ error: 'Başlık gerekli' }, { status: 400 });
+  data.project_id = pid;
   try {
-    await ensureSchema();
     const keys = Object.keys(data);
     const text = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map((_, i) => '$' + (i + 1)).join(', ')}) RETURNING *`;
     const rows = await sql().query(text, keys.map((k) => data[k]));
     return NextResponse.json(toCamel(rows[0]));
   } catch (e) {
-    return NextResponse.json({ error: String((e && e.message) || e) }, { status: 500 });
+    return fail(e);
   }
 }

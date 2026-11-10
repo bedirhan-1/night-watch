@@ -1,5 +1,6 @@
 (function(){
 "use strict";
+var PID=location.pathname.split("/")[2]||"";var BASE="/api/projects/"+encodeURIComponent(PID);
 var ST=[["acik","Açık"],["devam","Devam ediyor"],["beklemede","Beklemede"],["cozuldu","Çözüldü"]];
 var PR=[["kritik","Kritik"],["yuksek","Yüksek"],["orta","Orta"],["dusuk","Düşük"]];
 var CAT=[["ci","CI / Vercel derlemesi"],["prod","Üretim hatası"],["aws","AWS güvenlik olayı"],["store","App Store / TestFlight"],["diger","Diğer"]];
@@ -9,7 +10,7 @@ var VIEWS=["kanban","liste","zaman","hafta","kararlar","hatirlatmalar","ayarlar"
 var SRC={vercel:"Vercel",github:"GitHub",apple:"App Store",aws:"AWS"};
 var records=[],decisions=[],reminders=[],meta={services:[]},loaded=false,weekOff=0;
 var F={q:"",status:"",owner:"",priority:"",area:""};
-try{var s=JSON.parse(localStorage.getItem("bikort-filters")||"null");if(s)for(var k in F)if(typeof s[k]==="string")F[k]=s[k];}catch(e){}
+try{var s=JSON.parse(localStorage.getItem("nw-filters-"+PID)||"null");if(s)for(var k in F)if(typeof s[k]==="string")F[k]=s[k];}catch(e){}
 function $(id){return document.getElementById(id)}
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function label(arr,key){for(var i=0;i<arr.length;i++)if(arr[i][0]===key)return arr[i][1];return key||""}
@@ -52,7 +53,7 @@ function filtered(){
 ["status","owner","priority","area"].forEach(function(k){$("f-"+k).addEventListener("change",function(e){F[k]=e.target.value;saveF();render()})});
 $("f-q").value=F.q;
 $("f-q").addEventListener("input",function(e){F.q=e.target.value;saveF();render()});
-function saveF(){try{localStorage.setItem("bikort-filters",JSON.stringify(F))}catch(e){}}
+function saveF(){try{localStorage.setItem("nw-filters-"+PID,JSON.stringify(F))}catch(e){}}
 
 /* ---------- parçalar ---------- */
 function chips(r,withStatus){
@@ -139,7 +140,7 @@ function vWeek(){
     '<div class="cols2">'+block("Bu hafta verilen kararlar",w.dec,decRow,"Bu hafta karar kaydı yok.")+block("Karar bekleyen maddeler",w.pend,decRow,"Bekleyen madde yok.")+"</div></div>";
 }
 function weekText(){
-  var w=weekData(),L=["Bikort haftalık özet ("+fmt(w.a)+" – "+fmt(w.b)+")","Açılan: "+w.opened.length+" | Çözülen: "+w.resolved.length+" | Açık kritik: "+w.crit.length+" | Geciken: "+w.late.length];
+  var w=weekData(),L=[((meta.project&&meta.project.name)||"Proje")+" haftalık özet ("+fmt(w.a)+" – "+fmt(w.b)+")","Açılan: "+w.opened.length+" | Çözülen: "+w.resolved.length+" | Açık kritik: "+w.crit.length+" | Geciken: "+w.late.length];
   function sec(t,arr,fn){if(arr.length){L.push("",t+":");arr.forEach(function(x){L.push("- "+fn(x))})}}
   function rl(r){return r.title+" ["+label(PR,r.priority)+", "+label(ST,r.status)+"]"+(r.nextAction&&!isDone(r)?" → "+r.nextAction:"")}
   sec("Çözülenler",w.resolved,rl);sec("Açılanlar",w.opened,rl);sec("Açık kritikler",w.crit,rl);sec("Gecikenler",w.late,rl);
@@ -189,7 +190,7 @@ async function api(method,path,body){
 function write(p){return p.then(load).catch(function(e){toast(e.message||"Kaydedilemedi, tekrar dene.")})}
 function setStatus(id,to){
   var r=records.find(function(x){return x.id===id});if(!r||r.status===to||!need())return;
-  write(api("PUT","/api/data/records/"+id,{status:to,resolvedAt:to==="cozuldu"?(r.resolvedAt||today()):""}));
+  write(api("PUT",BASE+"/data/records/"+id,{status:to,resolvedAt:to==="cozuldu"?(r.resolvedAt||today()):""}));
 }
 function sel(id,arr,val){return'<select id="'+id+'">'+arr.map(function(a){return'<option value="'+a[0]+'"'+(a[0]===val?" selected":"")+">"+esc(a[1])+"</option>"}).join("")+"</select>"}
 function openDlg(html){var d=$("dlg");d.innerHTML=html;if(d.showModal){if(!d.open)d.showModal()}else d.setAttribute("open","");d.scrollTop=0}
@@ -220,7 +221,7 @@ function editRecord(id){
     var d={title:val("r-title"),category:val("r-category"),status:val("r-status"),priority:val("r-priority"),env:val("r-env"),owner:val("r-owner"),area:val("r-area"),sourceUrl:val("r-sourceUrl"),errorMessage:$("r-errorMessage").value.trim(),expectedFix:$("r-expectedFix").value.trim(),nextAction:val("r-nextAction"),createdAt:val("r-createdAt")||today(),dueDate:val("r-dueDate"),resolvedAt:val("r-resolvedAt"),updatedAt:new Date().toISOString()};
     if(d.status==="cozuldu"&&!d.resolvedAt)d.resolvedAt=today();
     if(d.status!=="cozuldu")d.resolvedAt="";
-    write(api(id?"PUT":"POST","/api/data/records"+(id?"/"+id:""),d));closeDlg();
+    write(api(id?"PUT":"POST",BASE+"/data/records"+(id?"/"+id:""),d));closeDlg();
   });
 }
 function editDecision(id){
@@ -239,7 +240,7 @@ function editDecision(id){
     if(!need())return;
     var o={title:val("d-title"),note:$("d-note").value.trim(),status:val("d-status"),owner:val("d-owner"),decidedAt:val("d-decidedAt"),createdAt:val("d-createdAt")||today(),updatedAt:new Date().toISOString()};
     if(o.status!=="bekliyor"&&!o.decidedAt)o.decidedAt=today();
-    write(api(id?"PUT":"POST","/api/data/decisions"+(id?"/"+id:""),o));closeDlg();
+    write(api(id?"PUT":"POST",BASE+"/data/decisions"+(id?"/"+id:""),o));closeDlg();
   });
 }
 $("addRecord").addEventListener("click",function(){editRecord(null)});
@@ -249,19 +250,22 @@ $("dlg").addEventListener("click",function(e){
   var del=t.closest("[data-del]");
   if(del){
     if(!del.dataset.sure){del.dataset.sure="1";del.textContent="Emin misin? Kalıcı olarak sil";return}
-    write(api("DELETE","/api/data/"+del.dataset.del));closeDlg();
+    write(api("DELETE",BASE+"/data/"+del.dataset.del));closeDlg();
   }
 });
 document.addEventListener("click",function(e){
   var t=e.target;
   if(t.closest("#addDecision")){editDecision(null);return}
   if(t.closest("#addReminder")){editReminder(null);return}
-  var rd=t.closest("[data-remdone]");if(rd){write(api("PUT","/api/data/reminders/"+rd.dataset.remdone,{done:rd.dataset.to==="1"}));return}
+  var rd=t.closest("[data-remdone]");if(rd){write(api("PUT",BASE+"/data/reminders/"+rd.dataset.remdone,{done:rd.dataset.to==="1"}));return}
   var rm=t.closest("[data-rem]");if(rm&&!t.closest("dialog")){editReminder(rm.dataset.rem);return}
-  if(t.closest("#saveEmail")){write(api("POST","/api/settings",{notifyEmail:val("s-email")}).then(function(){toast("Bildirim adresi kaydedildi.")}));return}
-  if(t.closest("#runNow")){toast("Servisler kontrol ediliyor…");write(api("POST","/api/run",{}).then(function(j){toast("Kontrol bitti: "+j.created+" yeni kayıt.")}));return}
-  if(t.closest("#mailNow")){toast("Özet gönderiliyor…");write(api("POST","/api/run",{mail:true}).then(function(j){toast("Özet "+j.mailedTo+" adresine gönderildi.")}));return}
-  if(t.closest("#logout")){api("POST","/api/logout",{}).then(function(){location.href="/login"});return}
+  if(t.closest("#saveProject")){write(api("PUT",BASE,{name:val("s-name"),notifyEmail:val("s-email"),defaultOwner:val("s-owner"),members:val("s-members")}).then(function(){toast("Proje ayarları kaydedildi.")}));return}
+  var ss=t.closest("[data-svc-save]");if(ss){var vals={};SVCF[ss.dataset.svcSave].forEach(function(f){var el=$("c-"+f[0]);if(!el)return;var v=el.value.trim();if(f[2]&&!v)return;vals[f[0]]=v});write(api("PUT",BASE+"/credentials",{values:vals}).then(function(){toast("Bağlantı kaydedildi.")}));return}
+  var sc=t.closest("[data-svc-clear]");if(sc){if(!sc.dataset.sure){sc.dataset.sure="1";sc.textContent="Emin misin? Kaldır";return}write(api("PUT",BASE+"/credentials",{clear:sc.dataset.svcClear}));return}
+  var dp=t.closest("#delProject");if(dp){if(!dp.dataset.sure){dp.dataset.sure="1";dp.textContent="Emin misin? Tüm kayıtlarıyla sil";return}api("DELETE",BASE).then(function(){location.href="/"}).catch(function(e){toast(e.message)});return}
+  if(t.closest("#runNow")){toast("Servisler kontrol ediliyor…");write(api("POST",BASE+"/run",{}).then(function(j){toast("Kontrol bitti: "+j.created+" yeni kayıt.")}));return}
+  if(t.closest("#mailNow")){toast("Özet gönderiliyor…");write(api("POST",BASE+"/run",{mail:true}).then(function(j){toast("Özet "+j.mailedTo+" adresine gönderildi.")}));return}
+  if(t.closest("#logout")){api("POST","/api/auth/logout",{}).then(function(){location.href="/login"});return}
   var adv=t.closest("[data-adv]");if(adv){e.stopPropagation();setStatus(adv.dataset.adv,adv.dataset.to);return}
   var wk=t.closest("[data-week]");if(wk){weekOff=Math.min(0,weekOff+ +wk.dataset.week);render();return}
   if(t.closest("#copyWeek")){var txt=weekText();try{navigator.clipboard.writeText(txt).then(function(){toast("Haftalık özet kopyalandı.")},function(){toast("Kopyalanamadı.")})}catch(x){toast("Kopyalanamadı.")}return}
@@ -303,28 +307,36 @@ function editReminder(id){
     e.preventDefault();
     if(!val("m-title")){toast("Başlık gerekli.");$("m-title").focus();return}
     var o={title:val("m-title"),note:$("m-note").value.trim(),dueDate:val("m-dueDate"),done:val("m-done")==="1"};
-    write(api(id?"PUT":"POST","/api/data/reminders"+(id?"/"+id:""),o));closeDlg();
+    write(api(id?"PUT":"POST",BASE+"/data/reminders"+(id?"/"+id:""),o));closeDlg();
   });
 }
 /* ---------- ayarlar ---------- */
+var SVCF={vercel:[["vercelToken","Token",1],["vercelTeamId","Takım ID (isteğe bağlı)",0],["vercelProjects","Vercel proje adları (virgülle; boşsa hepsi)",0]],github:[["githubToken","Token",1],["githubRepos","Depolar (sahip/depo, virgülle)",0]],apple:[["ascKeyId","Key ID",0],["ascIssuerId","Issuer ID",0],["ascPrivateKey",".p8 dosyasının içeriği",2],["ascAppId","App ID (isteğe bağlı)",0]],aws:[["awsAccessKeyId","Access key ID",0],["awsSecretAccessKey","Secret access key",1]]};
 function vSettings(){
+  var p=meta.project||{},cr=meta.credentials||{values:{},set:{}},adm=!!meta.admin;
   var sv=(meta.services||[]).map(function(s){
     var chip=!s.configured?'<span class="chip">Bağlı değil</span>':s.ranAt?(s.ok?'<span class="chip ok">Çalışıyor</span>':'<span class="chip bad">Hata</span>'):'<span class="chip">Henüz çalışmadı</span>';
+    var form="";
+    if(adm)form='<details><summary class="src">'+(s.configured?"Bağlantıyı düzenle":"Bağla")+'</summary><div class="svc-form">'+SVCF[s.key].map(function(f){
+      var id="c-"+f[0],ph=f[2]&&cr.set[f[0]]?"Kayıtlı. Değiştirmek için yeni değer gir":"";
+      return"<label>"+esc(f[1])+(f[2]===2?'<textarea id="'+id+'" class="mono" placeholder="'+ph+'"></textarea>':'<input type="'+(f[2]?"password":"text")+'" id="'+id+'" autocomplete="off" value="'+esc(f[2]?"":(cr.values[f[0]]||""))+'" placeholder="'+ph+'">')+"</label>";
+    }).join("")+'<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary sm" data-svc-save="'+s.key+'">Kaydet</button>'+(s.configured?'<button type="button" class="btn danger sm" data-svc-clear="'+s.key+'">Bağlantıyı kaldır</button>':"")+"</div></div></details>";
     return'<div class="svc"><div class="row-line"><strong>'+esc(s.label)+"</strong>"+chip+"</div>"+
-      '<span class="muted small">'+esc(!s.configured?"Ortam değişkenleri: "+s.env:(s.message||""))+(s.ranAt?" · "+esc(new Date(s.ranAt).toLocaleString("tr-TR",{dateStyle:"medium",timeStyle:"short"})):"")+"</span></div>";
+      (s.message||s.ranAt?'<span class="muted small">'+esc(s.message||"")+(s.ranAt?" · "+esc(new Date(s.ranAt).toLocaleString("tr-TR",{dateStyle:"medium",timeStyle:"short"})):"")+"</span>":"")+form+"</div>";
   }).join("");
-  return'<div class="sec" style="gap:16px"><div class="sec"><h3>Bildirim adresi</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="s-email" inputmode="email" value="'+esc(meta.notifyEmail||"")+'" placeholder="ornek@alan.com" style="flex:1 1 220px"><button type="button" class="btn primary" id="saveEmail">Kaydet</button></div>'+
-    '<span class="muted small">Günlük özet ve hatırlatmalar her sabah 08:00 civarında bu adrese gider.'+(meta.mailConfigured?"":" Mail gönderimi için RESEND_API_KEY tanımlı değil.")+"</span></div>"+
-    '<div class="sec"><h3>Bağlı servisler</h3>'+sv+"</div>"+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="runNow">Şimdi kontrol et</button><button type="button" class="btn" id="mailNow">Özet mailini şimdi gönder</button><button type="button" class="btn ghost" id="logout">Çıkış yap</button></div></div>';
+  var proj=adm?'<div class="sec"><h3>Proje</h3><div class="pform"><label>Proje adı<input type="text" id="s-name" value="'+esc(p.name||"")+'"></label><label>Bildirim adresi<input type="text" id="s-email" inputmode="email" value="'+esc(p.notifyEmail||"")+'" placeholder="ornek@alan.com"></label>'+
+    '<label>Otomatik kayıtların sorumlusu<input type="text" id="s-owner" value="'+esc(p.defaultOwner||"")+'"></label><label>Üyeler (e-posta, virgülle)<input type="text" id="s-members" value="'+esc(p.members||"")+'" placeholder="Bu projeye girebilecek diğer kişiler"></label></div>'+
+    '<div><button type="button" class="btn primary" id="saveProject">Kaydet</button></div><span class="muted small">Günlük özet ve hatırlatmalar her sabah 08:00 civarında bildirim adresine gider.'+(meta.mailConfigured?"":" Mail gönderimi için RESEND_API_KEY tanımlı değil.")+"</span></div>":"";
+  return'<div class="sec" style="gap:18px">'+proj+'<div class="sec"><h3>Bağlı servisler</h3>'+(adm?'<span class="muted small">Token\'lar veritabanında şifreli saklanır ve kaydedildikten sonra bir daha gösterilmez.</span>':"")+sv+"</div>"+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="runNow">Şimdi kontrol et</button><button type="button" class="btn" id="mailNow">Özet mailini şimdi gönder</button><button type="button" class="btn ghost" id="logout">Çıkış yap</button>'+(adm?'<button type="button" class="btn danger" id="delProject">Projeyi sil</button>':"")+"</div></div>";
 }
 /* ---------- veri ---------- */
 function note(m){var s=$("status");if(m){s.textContent=m;s.hidden=false}else s.hidden=true}
 async function load(){
-  try{var s=await api("GET","/api/state");records=s.records||[];decisions=s.decisions||[];reminders=s.reminders||[];meta=s.meta||{services:[]};note("")}
+  try{var s=await api("GET",BASE+"/state");records=s.records||[];decisions=s.decisions||[];reminders=s.reminders||[];meta=s.meta||{services:[]};note("");if(meta.project){$("pname").textContent=meta.project.name;document.title=meta.project.name+" · Night Watch"}}
   catch(e){note("Kayıtlara ulaşılamadı: "+(e.message||""))}
   loaded=true;
-  if(view()==="ayarlar"&&document.activeElement&&document.activeElement.id==="s-email")return;
+  var ae=document.activeElement;if(view()==="ayarlar"&&ae&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&$("view").contains(ae))return;
   syncFilters();render();
 }
 document.addEventListener("keydown",function(e){

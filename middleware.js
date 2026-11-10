@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server';
-import { COOKIE, sessionToken } from './lib/auth';
 
-export async function middleware(req) {
+// Burada yalnızca oturum çerezinin varlığına bakılır; çerezin geçerliliği ve proje yetkisi her API çağrısında veritabanından doğrulanır.
+const COOKIE = 'nw_session';
+
+export function middleware(req) {
   const { pathname } = req.nextUrl;
-  if (pathname === '/login' || pathname === '/api/login' || pathname.startsWith('/api/cron/')) return NextResponse.next();
-
-  const expected = await sessionToken();
-  const got = req.cookies.get(COOKIE)?.value || '';
-  if (expected && got === expected) return NextResponse.next();
-
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.json({ error: expected ? 'Oturum gerekli' : 'APP_PASSWORD tanımlı değil' }, { status: 401 });
-  }
+  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/cron/')) return NextResponse.next();
+  if (req.cookies.get(COOKIE)?.value) return NextResponse.next();
+  if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
   const url = req.nextUrl.clone();
   url.pathname = '/login';
   url.search = '';

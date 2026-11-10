@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Bikort Operasyon Panosu',
+  title: 'Night Watch',
   robots: { index: false, follow: false },
 };
 
