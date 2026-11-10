@@ -23,8 +23,9 @@ Daha fazlası: [Vercel: access token belgeleri](https://vercel.com/docs/accounts
 2. “Resource owner” olarak depoların sahibini seç (kendin ya da organizasyon). “Repository access” altında “Only select repositories” ile izlenecek depoları işaretle.
 3. “Permissions” > “Repository permissions” altında Actions için “Read-only” seç. Metadata izni kendiliğinden eklenir; başka izin gerekmez.
 4. “Generate token”a bas, token’ı kopyalayıp aşağıdaki “Token” alanına yapıştır.
-5. “Depolar” alanına izlenecek depoları sahip/depo biçiminde, virgülle yaz (örn. bedirhan-1/night-watch, bikort/web).
-6. Depo bir organizasyona aitse organizasyon yöneticisinin token’ı onaylaması gerekebilir; onaylanana kadar kontrol “Hata” gösterir.
+5. “Depolar” alanına izlenecek depoları sahip/depo biçiminde, virgülle yaz (örn. bikort/web, bikort/mobile). Bir sahibin token’ın eriştiği tüm depoları için sahip/* yazabilirsin (örn. bikort/*).
+6. Bir fine-grained token yalnızca tek bir sahibin depolarına erişir. Depolar bir organizasyondaysa 2. adımda “Resource owner” olarak o organizasyonu seçmelisin; kişisel hesabınla açılmış token organizasyon depolarını göremez ve “bulunamadı” hatası verir.
+7. Organizasyon listede çıkmıyorsa ya da token “pending” kalıyorsa, organizasyonun Settings > Personal access tokens sayfasından fine-grained token’lara izin verilmesi ve isteğin onaylanması gerekir.
 
 Daha fazlası: [GitHub: kişisel erişim token’ları](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 

@@ -207,7 +207,7 @@ export function RemindersPanel({ reminders, onOpen, onNew, onToggle }) {
 // [alan, etiket, tür] — tür: 0 düz metin, 1 gizli tek satır, 2 gizli çok satır
 const SVCF = {
   vercel: [['vercelToken', 'Token', 1], ['vercelTeamId', 'Takım ID (isteğe bağlı)', 0], ['vercelProjects', 'Vercel proje adları (virgülle; boşsa hepsi)', 0]],
-  github: [['githubToken', 'Token', 1], ['githubRepos', 'Depolar (sahip/depo, virgülle)', 0]],
+  github: [['githubToken', 'Token', 1], ['githubRepos', 'Depolar (sahip/depo ya da sahip/*, virgülle)', 0]],
   apple: [['ascKeyId', 'Key ID', 0], ['ascIssuerId', 'Issuer ID', 0], ['ascPrivateKey', '.p8 dosyasının içeriği', 2], ['ascAppId', 'App ID (isteğe bağlı)', 0]],
   aws: [['awsAccessKeyId', 'Access key ID', 0], ['awsSecretAccessKey', 'Secret access key', 1]],
 };
