@@ -30,6 +30,8 @@ Giriş bağlantıları sınırlıdır: adres başına dakikada 1 ve saatte 5, t�
 
 ## Servis token'ları
 
+Adım adım kurulum ve gidilecek sayfaların bağlantıları: [docs/baglantilar.md](docs/baglantilar.md). Aynı rehber uygulamada Ayarlar > Bağla bölümünde de görünür.
+
 Her projenin Ayarlar sekmesinden girilir, veritabanında AES-256-GCM ile şifreli saklanır ve kaydedildikten sonra tarayıcıya bir daha gönderilmez.
 
 | Servis | Alanlar | Nereden alınır | Gereken yetki |

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Copy, LogOut, Mail, Play, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Copy, ExternalLink, LogOut, Mail, Play, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { GUIDES } from '@/lib/guides';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -220,6 +221,38 @@ function Confirm({ children, confirmText, onConfirm, ...props }) {
   );
 }
 
+const linkCls = 'inline-flex items-center gap-1 text-link underline-offset-4 hover:underline';
+
+// Servisin nasıl bağlanacağını adım adım anlatır; bağlantılar ilgili sayfayı yeni sekmede açar.
+function Guide({ service }) {
+  const g = GUIDES[service];
+  if (!g) return null;
+  return (
+    <div className="rounded-md border bg-chrome/60 px-3.5 py-3 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground">
+        <span className="font-medium text-foreground">Neye bakar: </span>
+        {g.checks}
+      </p>
+      <p className="mt-2.5 font-medium">Nasıl bağlanır</p>
+      <ol className="mt-1 list-decimal space-y-1.5 pl-5 text-muted-foreground marker:text-link">
+        {g.steps.map(([text, linkText, url], i) => (
+          <li key={i}>
+            {text}{' '}
+            {url ? (
+              <a href={url} target="_blank" rel="noopener noreferrer" className={linkCls}>
+                {linkText} <ExternalLink className="size-3" />
+              </a>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+      <a href={g.docs[1]} target="_blank" rel="noopener noreferrer" className={cn(linkCls, 'mt-2.5')}>
+        {g.docs[0]} <ExternalLink className="size-3" />
+      </a>
+    </div>
+  );
+}
+
 function ServiceCard({ s, admin, creds, onSave, onClear }) {
   const [open, setOpen] = useState(false);
   const [vals, setVals] = useState({});
@@ -260,6 +293,7 @@ function ServiceCard({ s, admin, creds, onSave, onClear }) {
       </div>
       {admin && open ? (
         <div className="grid gap-3 border-t px-4 py-3.5">
+          <Guide service={s.key} />
           {fields.map((f) => {
             const id = `cred-${f[0]}`;
             const ph = f[2] && creds.set[f[0]] ? 'Kayıtlı. Değiştirmek için yeni değer gir' : '';
@@ -330,7 +364,12 @@ export function SettingsPanel({ meta, busy, onSaveProject, onSaveCreds, onClearC
       ) : null}
 
       <Section title="Bağlı servisler">
-        {admin ? <p className="text-[13px] text-muted-foreground">Token'lar veritabanında şifreli saklanır ve kaydedildikten sonra bir daha gösterilmez.</p> : null}
+        {admin ? (
+          <p className="text-[13px] text-muted-foreground">
+            Bir servisi bağlamak için “Bağla”ya bas; açılan bölümde adım adım rehber ve gidilecek sayfaların bağlantıları var. Token'lar veritabanında şifreli saklanır ve kaydedildikten sonra bir daha
+            gösterilmez.
+          </p>
+        ) : null}
         {(meta.services || []).map((s) => (
           <ServiceCard key={s.key} s={s} admin={admin} creds={creds} onSave={onSaveCreds} onClear={() => onClearCreds(s.key)} />
         ))}
