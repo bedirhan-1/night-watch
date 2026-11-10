@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql, ensureSchema } from '@/lib/db';
-import { isAllowed, hash, newToken, fail } from '@/lib/auth';
+import { isAllowed, admins, hash, newToken, fail } from '@/lib/auth';
 import { sendMail, loginMail, appUrl } from '@/lib/mail';
 
 export async function POST(req) {
@@ -15,13 +15,18 @@ export async function POST(req) {
       const q = sql();
       const now = new Date();
       const recent = await q`SELECT 1 FROM login_tokens WHERE email = ${email} AND created_at > ${new Date(now.getTime() - 60000).toISOString()}`;
+      if (recent.length) console.warn('[auth] son 60 saniyede bağlantı gönderildi, yenisi gönderilmedi');
       if (!recent.length) {
         const token = newToken();
         await q`INSERT INTO login_tokens (token_hash, email, created_at, expires_at)
                 VALUES (${hash(token)}, ${email}, ${now.toISOString()}, ${new Date(now.getTime() + 15 * 60000).toISOString()})`;
         const link = `${appUrl(req.nextUrl.origin)}/login/verify?token=${token}`;
         await sendMail({ to: email, subject: 'Night Watch giriş bağlantısı', html: loginMail(link) });
+        console.log('[auth] giriş bağlantısı gönderildi');
       }
+    } else {
+      // Yanıt dışarıya aynı kalır; nedenini yalnızca sunucu günlüğü söyler.
+      console.warn(`[auth] adres ADMIN_EMAILS ya da proje üyeleri arasında değil (ADMIN_EMAILS içinde ${admins().length} adres var)`);
     }
     return NextResponse.json({ ok: true });
   } catch (e) {
