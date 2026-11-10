@@ -5,14 +5,15 @@ import { CalendarDays, Check, Plus, Search, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
-import { Pick, Empty, Avatar, PriorityBadge, StatusBadge, LateBadge, SourceBadge, QuickMenu, priorityStripe } from './bits';
+import { usePeople, ownerLabel, Pick, Empty, Avatar, PriorityBadge, StatusBadge, LateBadge, SourceBadge, QuickMenu, priorityStripe } from './bits';
 import { ST, PR, CAT, SORTS, label, uniq, sortRecs, isDone, isLate, fmt, ago, day, today, presetLabel } from '@/lib/board';
 
 const seg = 'h-10 w-auto min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 font-medium shadow-none sm:flex-none';
 
 export function FilterBar({ records, f, setF, preset, setPreset, sort, setSort }) {
   const set = (k) => (v) => setF({ ...f, [k]: v });
-  const pairs = (key) => uniq(records, key).map((x) => [x, x]);
+  const people = usePeople();
+  const pairs = (key) => uniq(records, key).map((x) => [x, key === 'owner' ? ownerLabel(people, x) : x]);
   return (
     <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
       <div className="flex divide-x overflow-hidden rounded-md border bg-chrome shadow-[0_2px_0_rgba(0,0,0,.28)]">

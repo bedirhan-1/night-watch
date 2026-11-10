@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { guard, fail } from '@/lib/auth';
+import { guard, fail, memberEmails } from '@/lib/auth';
 import { toCamel } from '@/lib/util';
 import { SERVICES } from '@/lib/sync';
 import { decrypt, configured, publicView } from '@/lib/creds';
@@ -32,6 +32,13 @@ export async function GET(_req, { params }) {
       return { key: s.key, label: s.label, configured: on[s.key], ok: c ? c.ok : null, message: c ? c.message : credError, ranAt: c ? c.ran_at : '' };
     });
     const p = g.project;
+    // Projedeki kişiler: sahip ve üyeler. Henüz giriş yapmamış üyeler yalnızca e-postalarıyla görünür.
+    const emails = memberEmails(p);
+    const known = await q`SELECT email, name, avatar FROM users WHERE email = ANY(${emails}::text[])`;
+    const people = emails.map((email) => {
+      const u = known.find((x) => x.email === email);
+      return { email, name: (u && u.name) || '', avatar: (u && u.avatar) || '' };
+    });
     return NextResponse.json({
       records: records.map(toCamel),
       decisions: decisions.map(toCamel),
@@ -39,6 +46,8 @@ export async function GET(_req, { params }) {
       meta: {
         admin: g.owner,
         user: g.user.email,
+        me: { email: g.user.email, name: g.user.name, avatar: g.user.avatar },
+        people,
         mailConfigured: !!process.env.RESEND_API_KEY,
         project: g.owner
           ? { id: p.id, name: p.name, notifyEmail: p.notify_email, defaultOwner: p.default_owner, members: p.members, owner: p.owner_email }

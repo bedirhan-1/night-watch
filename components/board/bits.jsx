@@ -1,5 +1,6 @@
 'use client';
 
+import { createContext, useContext } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ST, PR, SRC, label, initials, isLate, fmt } from '@/lib/board';
 
 const ALL = '__all';
+
+// Projedeki kişiler ve oturumdaki kullanıcı; pano sayfası sağlar.
+export const PeopleContext = createContext({ people: [], me: null });
+export const usePeople = () => useContext(PeopleContext).people;
+export const useMe = () => useContext(PeopleContext).me;
+export const personName = (p) => (p ? p.name || p.email.split('@')[0] : '');
+// Sorumlu alanı kişi e-postası tutar; eski serbest metin değerleri olduğu gibi gösterilir.
+export const ownerLabel = (people, owner) => {
+  const p = people.find((x) => x.email === owner);
+  return p ? personName(p) : owner || '';
+};
 
 // shadcn Select'in kısa hali. placeholder verilirse "hepsi" seçeneği eklenir ve boş değer ('') ona karşılık gelir.
 export function Pick({ id, value, onChange, options, placeholder, className, ariaLabel }) {
@@ -28,6 +40,14 @@ export function Pick({ id, value, onChange, options, placeholder, className, ari
   );
 }
 
+// Sorumlu seçimi: projedeki kişiler. Listede olmayan eski bir değer varsa o da seçenek olarak kalır.
+export function OwnerPick({ id, value, onChange, className }) {
+  const people = usePeople();
+  const options = people.map((p) => [p.email, p.name ? `${p.name} (${p.email})` : p.email]);
+  if (value && !people.some((p) => p.email === value)) options.push([value, value]);
+  return <Pick id={id} value={value} onChange={onChange} options={options} placeholder="Atanmamış" className={className} />;
+}
+
 export function Field({ label: text, htmlFor, className, children }) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
@@ -43,11 +63,16 @@ export function Empty({ children, className }) {
   return <div className={cn('rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground', className)}>{children}</div>;
 }
 
-export function Avatar({ name, className }) {
-  const i = initials(name);
+export function Avatar({ name, src, className }) {
+  const people = usePeople();
+  const p = people.find((x) => x.email === name);
+  const text = p ? personName(p) : name;
+  const img = src || (p && p.avatar);
+  const i = initials(text);
+  if (img) return <img src={img} alt="" title={text} className={cn('size-7 shrink-0 rounded-full object-cover', className)} />;
   return (
     <span
-      title={name || 'Atanmamış'}
+      title={text || 'Atanmamış'}
       className={cn(
         'inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
         i ? 'bg-primary/30 text-accent-foreground' : 'border border-dashed text-muted-foreground',

@@ -10,7 +10,7 @@ import { Rail, Sidebar, MobileStrip, BottomNav, VIEW_TITLES, isIssueView } from 
 import { FilterBar, Attention, IssueTable, KanbanView, TimelineView } from '@/components/board/issues';
 import { WeekPanel, DecisionsPanel, RemindersPanel, SettingsPanel } from '@/components/board/panels';
 import { EditDialog } from '@/components/board/dialogs';
-import { Empty } from '@/components/board/bits';
+import { Empty, PeopleContext } from '@/components/board/bits';
 
 const VIEWS = Object.keys(VIEW_TITLES);
 const EMPTY_FILTERS = { q: '', status: '', owner: '', priority: '', area: '' };
@@ -101,7 +101,6 @@ export default function Board() {
   const list = useMemo(() => applyFilters(records, preset, filters), [records, preset, filters]);
   // Kanban'da "Çözülmemiş" görünümü Çözüldü sütununu boşaltmasın diye tüm kayıtlar gösterilir.
   const kanbanList = useMemo(() => applyFilters(records, preset === 'open' ? 'all' : preset, filters), [records, preset, filters]);
-  const owners = useMemo(() => uniq(records, 'owner'), [records]);
   const areas = useMemo(() => uniq(records, 'area'), [records]);
   const t = today();
   const dueReminders = reminders.filter((m) => !m.done && m.dueDate && m.dueDate <= t).length;
@@ -120,7 +119,7 @@ export default function Board() {
         status,
         category: preset.startsWith('cat:') ? preset.slice(4) : 'gorev',
         priority: 'orta',
-        owner: (meta.project && meta.project.defaultOwner) || '',
+        owner: meta.me ? meta.me.email : '',
         createdAt: today(),
         resolvedAt: status === 'cozuldu' ? today() : '',
       }),
@@ -169,6 +168,7 @@ export default function Board() {
       <SettingsPanel
         meta={meta}
         busy={busy}
+        onSaveProfile={(f) => run(() => api('PUT', '/api/me', f), 'Profil kaydedildi.')}
         onSaveProject={(f) => run(() => api('PUT', base, f), 'Proje ayarları kaydedildi.')}
         onSaveCreds={(values) => run(() => api('PUT', `${base}/credentials`, { values }), 'Bağlantı kaydedildi.')}
         onClearCreds={(key) => run(() => api('PUT', `${base}/credentials`, { clear: key }), 'Bağlantı kaldırıldı.')}
@@ -195,9 +195,12 @@ export default function Board() {
     body = <IssueTable list={list} sort={sort} onOpen={openRecord} onPatch={patchRecord} />;
   }
 
+  const peopleValue = useMemo(() => ({ people: meta.people || [], me: meta.me || null }), [meta.people, meta.me]);
+
   return (
+    <PeopleContext.Provider value={peopleValue}>
     <div className="flex h-dvh overflow-hidden">
-      <Rail view={view} dueReminders={dueReminders} email={meta.user || ''} onLogout={logout} />
+      <Rail view={view} dueReminders={dueReminders} me={meta.me || null} onLogout={logout} />
       {issueView ? <Sidebar projectName={projectName} view={view} preset={preset} setPreset={setPreset} counts={counts} /> : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -239,12 +242,13 @@ export default function Board() {
       </div>
 
       <BottomNav view={view} dueReminders={dueReminders} />
-      <EditDialog dialog={dialog} owners={owners} areas={areas} onSave={save} onDelete={remove} onClose={() => setDialog(null)} />
+      <EditDialog dialog={dialog} areas={areas} onSave={save} onDelete={remove} onClose={() => setDialog(null)} />
       {toastText ? (
         <div role="status" className="fixed bottom-20 left-1/2 z-[70] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-primary bg-popover px-4 py-2.5 text-sm shadow-xl lg:bottom-6">
           {toastText}
         </div>
       ) : null}
     </div>
+    </PeopleContext.Provider>
   );
 }

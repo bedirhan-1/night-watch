@@ -5,7 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Pick, Field } from './bits';
+import { Pick, Field, OwnerPick, useMe } from './bits';
 import { ST, PR, CAT, ENV, DST, today, day, fmtTime, safeUrl } from '@/lib/board';
 
 function useForm(initial) {
@@ -39,9 +39,10 @@ function Footer({ id, onDelete, onClose }) {
 const grid = 'grid gap-x-3 gap-y-3.5 sm:grid-cols-2';
 const full = 'sm:col-span-2';
 
-function RecordForm({ item, owners, areas, onSave, onDelete, onClose }) {
+function RecordForm({ item, areas, onSave, onDelete, onClose }) {
+  const me = useMe();
   const [form, bind, pick] = useForm(
-    item || { title: '', category: 'gorev', area: '', owner: '', status: 'acik', priority: 'orta', env: 'production', sourceUrl: '', createdAt: today(), dueDate: '', errorMessage: '', expectedFix: '', nextAction: '', resolvedAt: '' },
+    item || { title: '', category: 'gorev', area: '', owner: me ? me.email : '', status: 'acik', priority: 'orta', env: 'production', sourceUrl: '', createdAt: today(), dueDate: '', errorMessage: '', expectedFix: '', nextAction: '', resolvedAt: '' },
   );
   const [error, setError] = useState('');
   const url = safeUrl(form.sourceUrl);
@@ -73,7 +74,7 @@ function RecordForm({ item, owners, areas, onSave, onDelete, onClose }) {
         <Pick id="rec-env" options={ENV} placeholder="Belirtilmemiş" {...pick('env')} />
       </Field>
       <Field label="Sorumlu" htmlFor="rec-owner">
-        <Input id="rec-owner" list="dl-owners" {...bind('owner')} />
+        <OwnerPick id="rec-owner" {...pick('owner')} />
       </Field>
       <Field label="Proje alanı" htmlFor="rec-area">
         <Input id="rec-area" list="dl-areas" placeholder="Web, Mobil iOS…" {...bind('area')} />
@@ -107,11 +108,6 @@ function RecordForm({ item, owners, areas, onSave, onDelete, onClose }) {
       <Field label="Son güncelleme" htmlFor="rec-updated">
         <Input id="rec-updated" disabled value={item && item.updatedAt ? fmtTime(item.updatedAt) : '—'} readOnly />
       </Field>
-      <datalist id="dl-owners">
-        {owners.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
       <datalist id="dl-areas">
         {Array.from(new Set([...areas, 'Web', 'Mobil iOS', 'Backend / API', 'Altyapı / AWS'])).map((o) => (
           <option key={o} value={o} />
@@ -122,8 +118,9 @@ function RecordForm({ item, owners, areas, onSave, onDelete, onClose }) {
   );
 }
 
-function DecisionForm({ item, owners, onSave, onDelete, onClose }) {
-  const [form, bind, pick] = useForm(item || { title: '', note: '', status: 'bekliyor', owner: '', decidedAt: '', createdAt: today() });
+function DecisionForm({ item, onSave, onDelete, onClose }) {
+  const me = useMe();
+  const [form, bind, pick] = useForm(item || { title: '', note: '', status: 'bekliyor', owner: me ? me.email : '', decidedAt: '', createdAt: today() });
   const [error, setError] = useState('');
   function submit(e) {
     e.preventDefault();
@@ -145,7 +142,7 @@ function DecisionForm({ item, owners, onSave, onDelete, onClose }) {
         <Pick id="dec-status" options={DST} {...pick('status')} />
       </Field>
       <Field label="Sorumlu" htmlFor="dec-owner">
-        <Input id="dec-owner" list="dl-owners-d" {...bind('owner')} />
+        <OwnerPick id="dec-owner" {...pick('owner')} />
       </Field>
       <Field label="Karar tarihi" htmlFor="dec-decided">
         <Input id="dec-decided" type="date" {...bind('decidedAt')} />
@@ -153,11 +150,6 @@ function DecisionForm({ item, owners, onSave, onDelete, onClose }) {
       <Field label="Eklenme tarihi" htmlFor="dec-created">
         <Input id="dec-created" type="date" value={day(form.createdAt)} onChange={bind('createdAt').onChange} />
       </Field>
-      <datalist id="dl-owners-d">
-        {owners.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
       <Footer id={item && item.id} onDelete={onDelete} onClose={onClose} />
     </form>
   );
@@ -198,7 +190,7 @@ const TITLES = {
 };
 
 // dialog: { table: 'records' | 'decisions' | 'reminders', item: düzenlenen satır ya da null }
-export function EditDialog({ dialog, owners, areas, onSave, onDelete, onClose }) {
+export function EditDialog({ dialog, areas, onSave, onDelete, onClose }) {
   const table = dialog ? dialog.table : 'records';
   const item = dialog ? dialog.item : null;
   const common = { item, onClose, onSave: (data, id) => onSave(table, data, id), onDelete: (id) => onDelete(table, id) };
@@ -206,8 +198,8 @@ export function EditDialog({ dialog, owners, areas, onSave, onDelete, onClose })
     <Dialog open={!!dialog} onOpenChange={(o) => !o && onClose()}>
       {dialog ? (
         <DialogContent title={TITLES[table][item ? 1 : 0]} key={table + (item ? item.id : 'new')}>
-          {table === 'records' ? <RecordForm owners={owners} areas={areas} {...common} /> : null}
-          {table === 'decisions' ? <DecisionForm owners={owners} {...common} /> : null}
+          {table === 'records' ? <RecordForm areas={areas} {...common} /> : null}
+          {table === 'decisions' ? <DecisionForm {...common} /> : null}
           {table === 'reminders' ? <ReminderForm {...common} /> : null}
         </DialogContent>
       ) : null}

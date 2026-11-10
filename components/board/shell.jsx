@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CalendarDays, Clock, Gavel, Inbox, Kanban, List, LogOut, Folder, Settings, Shield } from 'lucide-react';
+import { Bell, CalendarDays, Clock, Gavel, Inbox, Kanban, List, LogOut, Folder, Settings, Shield, User } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { CAT, PRESETS, initials } from '@/lib/board';
@@ -37,18 +37,28 @@ export function Logo({ className }) {
   );
 }
 
-function UserMenu({ email, onLogout }) {
+function UserMenu({ me, onLogout }) {
+  const email = me ? me.email : '';
+  const name = me ? me.name : '';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Hesap"
-        className="inline-flex size-9 items-center justify-center rounded-lg bg-accent text-xs font-semibold text-accent-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex size-9 items-center justify-center overflow-hidden rounded-lg bg-accent text-xs font-semibold text-accent-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {initials(email) || '?'}
+        {me && me.avatar ? <img src={me.avatar} alt="" className="size-full object-cover" /> : initials(name || email) || '?'}
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="end">
-        <DropdownMenuLabel>{email}</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {name ? <span className="block text-sm text-foreground">{name}</span> : null}
+          {email}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <a href="#ayarlar">
+            <User /> Profil
+          </a>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href="/">
             <Folder /> Projeler
@@ -63,7 +73,7 @@ function UserMenu({ email, onLogout }) {
 }
 
 // Geniş ekranda soldaki ikon şeridi.
-export function Rail({ view, dueReminders, email, onLogout }) {
+export function Rail({ view, dueReminders, me, onLogout }) {
   return (
     <aside className="hidden w-[68px] shrink-0 flex-col items-center border-r bg-chrome py-3 lg:flex">
       <a href="/" aria-label="Projeler" className="mb-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -88,7 +98,7 @@ export function Rail({ view, dueReminders, email, onLogout }) {
           );
         })}
       </nav>
-      <UserMenu email={email} onLogout={onLogout} />
+      <UserMenu me={me} onLogout={onLogout} />
     </aside>
   );
 }

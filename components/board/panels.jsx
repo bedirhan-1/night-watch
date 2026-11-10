@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input, Textarea } from '@/components/ui/input';
-import { Empty, Field, PriorityBadge, StatusBadge, LateBadge } from './bits';
+import { Empty, Field, PriorityBadge, StatusBadge, LateBadge, OwnerPick, Avatar, ownerLabel, usePeople } from './bits';
 import { DST, label, fmt, fmtTime, today, weekData, weekText } from '@/lib/board';
 
 function Section({ title, count, action, children }) {
@@ -44,13 +44,14 @@ const DV = { bekliyor: 'high', verildi: 'primary', uygulandi: 'done' };
 const DB = { bekliyor: 'border-l-high', verildi: 'border-l-primary', uygulandi: 'border-l-done' };
 
 function DecRow({ d, onOpen }) {
+  const people = usePeople();
   return (
     <button type="button" className={cn(rowCls, 'border-l-[3px]', DB[d.status])} onClick={() => onOpen(d)}>
       <span className="break-words text-sm font-medium">{d.title}</span>
       {d.note ? <span className="whitespace-pre-wrap break-words text-[13px] text-muted-foreground">{d.note}</span> : null}
       <span className="flex flex-wrap items-center gap-1.5">
         <Badge variant={DV[d.status]}>{label(DST, d.status)}</Badge>
-        {d.owner ? <Badge>{d.owner}</Badge> : null}
+        {d.owner ? <Badge>{ownerLabel(people, d.owner)}</Badge> : null}
         {d.decidedAt ? <span className="text-xs text-muted-foreground">karar {fmt(d.decidedAt)}</span> : null}
       </span>
     </button>
@@ -320,7 +321,78 @@ function ServiceCard({ s, admin, creds, onSave, onClear }) {
   );
 }
 
-export function SettingsPanel({ meta, busy, onSaveProject, onSaveCreds, onClearCreds, onRun, onMail, onLogout, onDeleteProject }) {
+// Kullanıcının kendi görünen adı ve avatarı. Görsel tarayıcıda 96x96'ya küçültülüp öyle gönderilir.
+function ProfileSection({ me, onSave }) {
+  const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    setName((me && me.name) || '');
+    setAvatar((me && me.avatar) || '');
+  }, [me && me.name, me && me.avatar]);
+  function pickFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setError('');
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const size = 96;
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      const side = Math.min(img.width, img.height);
+      c.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      setAvatar(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setError('Bu dosya görsel olarak açılamadı.');
+    };
+    img.src = url;
+  }
+  if (!me) return null;
+  return (
+    <Section title="Profilin">
+      <form
+        className="flex flex-col gap-3 rounded-lg border bg-card p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave({ name, avatar });
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <Avatar name={name || me.email} src={avatar} className="size-14 text-base" />
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <label htmlFor="profile-avatar" className="cursor-pointer">
+                Avatar seç
+              </label>
+            </Button>
+            <input id="profile-avatar" type="file" accept="image/*" className="sr-only" onChange={pickFile} />
+            {avatar ? (
+              <Button variant="ghost" size="sm" onClick={() => setAvatar('')}>
+                Avatarı kaldır
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        <Field label="Görünen ad" htmlFor="profile-name" className="max-w-sm">
+          <Input id="profile-name" maxLength={40} placeholder={me.email.split('@')[0]} value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        {error ? <span className="text-xs text-crit">{error}</span> : null}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit">Kaydet</Button>
+          <span className="text-[13px] text-muted-foreground">{me.email} · Ad ve avatar, üyesi olduğun tüm projelerde sorumlu olarak göründüğün yerlerde kullanılır.</span>
+        </div>
+      </form>
+    </Section>
+  );
+}
+
+export function SettingsPanel({ meta, busy, onSaveProfile, onSaveProject, onSaveCreds, onClearCreds, onRun, onMail, onLogout, onDeleteProject }) {
   const p = meta.project || {};
   const admin = !!meta.admin;
   const creds = meta.credentials || { values: {}, set: {} };
@@ -331,6 +403,7 @@ export function SettingsPanel({ meta, busy, onSaveProject, onSaveCreds, onClearC
   const bind = (k) => ({ value: form[k], onChange: (e) => setForm({ ...form, [k]: e.target.value }) });
   return (
     <div className="flex max-w-3xl flex-col gap-7">
+      <ProfileSection me={meta.me} onSave={onSaveProfile} />
       {admin ? (
         <Section title="Proje">
           <form
@@ -346,11 +419,11 @@ export function SettingsPanel({ meta, busy, onSaveProject, onSaveCreds, onClearC
             <Field label="Bildirim adresi" htmlFor="set-email">
               <Input id="set-email" inputMode="email" placeholder="ornek@alan.com" {...bind('notifyEmail')} />
             </Field>
-            <Field label="Otomatik kayıtların sorumlusu" htmlFor="set-owner">
-              <Input id="set-owner" {...bind('defaultOwner')} />
+            <Field label="Otomatik açılan kayıtlar kime atansın?" htmlFor="set-owner">
+              <OwnerPick id="set-owner" value={form.defaultOwner} onChange={(v) => setForm({ ...form, defaultOwner: v })} />
             </Field>
             <Field label="Üyeler (e-posta, virgülle)" htmlFor="set-members">
-              <Input id="set-members" placeholder="Bu projeye girebilecek diğer kişiler" {...bind('members')} />
+              <Input id="set-members" placeholder="Bu projede birlikte çalışacağın kişiler" {...bind('members')} />
             </Field>
             <div className="flex flex-wrap items-center gap-3 md:col-span-2">
               <Button type="submit">Kaydet</Button>
