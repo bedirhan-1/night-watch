@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CalendarDays, Clock, Gavel, Inbox, Kanban, List, LogOut, Folder, Settings, User } from 'lucide-react';
+import { Bell, ScrollText, CalendarDays, Clock, Gavel, Inbox, Kanban, List, LogOut, Folder, Settings, User } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { CAT, PRESETS, initials } from '@/lib/board';
@@ -15,6 +15,7 @@ export const SECTIONS = [
   ['hafta', 'Hafta', CalendarDays],
   ['kararlar', 'Kararlar', Gavel],
   ['hatirlatmalar', 'Hatırlatma', Bell],
+  ['gunluk', 'Günlük', ScrollText],
   ['ayarlar', 'Ayarlar', Settings],
 ];
 export const VIEW_TITLES = {
@@ -24,6 +25,7 @@ export const VIEW_TITLES = {
   hafta: 'Haftalık özet',
   kararlar: 'Kararlar',
   hatirlatmalar: 'Hatırlatmalar',
+  gunluk: 'Günlük',
   ayarlar: 'Ayarlar',
 };
 export const isIssueView = (v) => v === 'akis' || v === 'kanban' || v === 'zaman';
@@ -202,7 +204,7 @@ export function BottomNav({ view, dueReminders }) {
             key={key}
             href={'#' + key}
             aria-current={on ? 'page' : undefined}
-            className={cn('relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] outline-none', on ? 'text-foreground' : 'text-muted-foreground')}
+            className={cn('relative flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10.5px] outline-none', on ? 'text-foreground' : 'text-muted-foreground')}
           >
             <span className={cn('relative flex h-7 w-11 items-center justify-center rounded-full', on && 'bg-accent text-accent-foreground')}>
               <Icon className="size-[18px]" />

@@ -13,11 +13,12 @@ export async function GET(_req, { params }) {
   if (g.error) return g.error;
   try {
     const q = sql();
-    const [records, decisions, reminders, checks] = await Promise.all([
+    const [records, decisions, reminders, checks, logs] = await Promise.all([
       q`SELECT * FROM records WHERE project_id = ${pid} ORDER BY updated_at DESC`,
       q`SELECT * FROM decisions WHERE project_id = ${pid} ORDER BY created_at DESC`,
       q`SELECT * FROM reminders WHERE project_id = ${pid} ORDER BY due_date`,
       q`SELECT * FROM checks WHERE project_id = ${pid}`,
+      q`SELECT * FROM logs WHERE project_id = ${pid} ORDER BY logged_at DESC LIMIT 1000`,
     ]);
     let creds = {};
     let credError = '';
@@ -43,6 +44,7 @@ export async function GET(_req, { params }) {
       records: records.map(toCamel),
       decisions: decisions.map(toCamel),
       reminders: reminders.map(toCamel),
+      logs: logs.map(toCamel),
       meta: {
         admin: g.owner,
         user: g.user.email,

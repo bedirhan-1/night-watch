@@ -13,6 +13,10 @@ export async function POST(req, { params }) {
   if (!data) return NextResponse.json({ error: 'Bilinmeyen tablo' }, { status: 404 });
   if (!data.title) return NextResponse.json({ error: 'Başlık gerekli' }, { status: 400 });
   data.project_id = pid;
+  if (table === 'logs') {
+    data.author = g.user.email;
+    if (!data.logged_at) data.logged_at = new Date().toISOString();
+  }
   try {
     const keys = Object.keys(data);
     const text = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map((_, i) => '$' + (i + 1)).join(', ')}) RETURNING *`;

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Pick, Field, OwnerPick, useMe } from './bits';
-import { ST, PR, CAT, ENV, DST, today, day, fmtTime, safeUrl, parseChecklist, serializeChecklist } from '@/lib/board';
+import { ST, PR, CAT, ENV, DST, LOG_KINDS, today, day, fmtTime, toLocalInput, safeUrl, parseChecklist, serializeChecklist } from '@/lib/board';
 
 function useForm(initial) {
   const [form, setForm] = useState(initial);
@@ -285,10 +285,40 @@ function ReminderForm({ item, onSave, onDelete, onClose }) {
   );
 }
 
+function LogForm({ item, onSave, onDelete, onClose }) {
+  const [form, bind, pick] = useForm(item ? { ...item, when: toLocalInput(item.loggedAt) } : { title: '', note: '', kind: 'not', when: toLocalInput() });
+  const [error, setError] = useState('');
+  function submit(e) {
+    e.preventDefault();
+    if (!String(form.title || '').trim()) return setError('Ne yaptığını yaz.');
+    const d = new Date(form.when);
+    onSave({ title: form.title.trim(), note: String(form.note || '').trim(), kind: form.kind || 'not', loggedAt: (isNaN(d) ? new Date() : d).toISOString() }, item && item.id);
+  }
+  return (
+    <form className={grid} onSubmit={submit} noValidate>
+      <Field label="Ne yaptın?" htmlFor="log-title" className={full}>
+        <Input id="log-title" maxLength={300} placeholder="Örn. 1.0.2 sürümünü yayınladım" autoFocus={!item} {...bind('title')} />
+        {error ? <span className="text-xs text-crit">{error}</span> : null}
+      </Field>
+      <Field label="Ayrıntı" htmlFor="log-note" className={full}>
+        <Textarea id="log-note" placeholder="Neler değişti, nelere dikkat etmek gerekiyor" {...bind('note')} />
+      </Field>
+      <Field label="Tür" htmlFor="log-kind">
+        <Pick id="log-kind" options={LOG_KINDS} {...pick('kind')} />
+      </Field>
+      <Field label="Tarih ve saat" htmlFor="log-when">
+        <Input id="log-when" type="datetime-local" {...bind('when')} />
+      </Field>
+      <Footer id={item && item.id} onDelete={onDelete} onClose={onClose} />
+    </form>
+  );
+}
+
 const TITLES = {
   records: ['Yeni kayıt', 'Kaydı düzenle'],
   decisions: ['Yeni karar maddesi', 'Karar maddesini düzenle'],
   reminders: ['Yeni hatırlatma', 'Hatırlatmayı düzenle'],
+  logs: ['Yeni günlük kaydı', 'Günlük kaydını düzenle'],
 };
 
 // dialog: { table: 'records' | 'decisions' | 'reminders', item: düzenlenen satır ya da null }
@@ -303,6 +333,7 @@ export function EditDialog({ dialog, areas, onSave, onDelete, onClose }) {
           {table === 'records' ? <RecordForm areas={areas} {...common} /> : null}
           {table === 'decisions' ? <DecisionForm {...common} /> : null}
           {table === 'reminders' ? <ReminderForm {...common} /> : null}
+          {table === 'logs' ? <LogForm {...common} /> : null}
         </DialogContent>
       ) : null}
     </Dialog>

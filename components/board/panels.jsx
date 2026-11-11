@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input, Textarea } from '@/components/ui/input';
 import { Empty, Field, PriorityBadge, StatusBadge, LateBadge, OwnerPick, Avatar, ownerLabel, usePeople } from './bits';
-import { DST, label, fmt, fmtTime, today, weekData, weekText } from '@/lib/board';
+import { DST, LOG_KINDS, label, fmt, fmtTime, fmtClock, day, today, weekData, weekText } from '@/lib/board';
+import { Pick } from './bits';
 
 function Section({ title, count, action, children }) {
   return (
@@ -72,12 +73,16 @@ function Stat({ n, text, tone }) {
   );
 }
 
-export function WeekPanel({ projectName, records, decisions, onOpenRecord, onOpenDecision, toast }) {
+export function WeekPanel({ projectName, records, decisions, logs = [], onOpenRecord, onOpenDecision, onOpenLog, toast }) {
   const [off, setOff] = useState(0);
   const w = weekData(records, decisions, off);
+  const weekLogs = logs.filter((l) => {
+    const d = day(l.loggedAt);
+    return d >= w.a && d <= w.b;
+  });
   async function copy() {
     try {
-      await navigator.clipboard.writeText(weekText(projectName || 'Proje', w));
+      await navigator.clipboard.writeText(weekText(projectName || 'Proje', w, weekLogs.slice().reverse()));
       toast('Haftalık özet kopyalandı.');
     } catch {
       toast('Kopyalanamadı.');
@@ -122,6 +127,99 @@ export function WeekPanel({ projectName, records, decisions, onOpenRecord, onOpe
           <List items={w.pend} empty="Bekleyen madde yok." render={(d) => <DecRow key={d.id} d={d} onOpen={onOpenDecision} />} />
         </Section>
       </div>
+      <Section title="Bu haftanın günlüğü" count={weekLogs.length}>
+        <List items={weekLogs} empty="Bu hafta günlüğe bir şey yazılmamış." render={(l) => <LogRow key={l.id} l={l} onOpen={onOpenLog} showDate />} />
+      </Section>
+    </div>
+  );
+}
+
+const LV = { yayin: 'primary', degisiklik: 'high', olay: 'crit', not: 'default' };
+
+function LogRow({ l, onOpen, showDate }) {
+  return (
+    <button type="button" className={cn(rowCls, 'flex-row items-start gap-3')} onClick={() => onOpen(l)}>
+      <span className="w-12 shrink-0 pt-0.5 text-xs tabular-nums text-muted-foreground">
+        {showDate ? <span className="block">{fmt(l.loggedAt)}</span> : null}
+        {fmtClock(l.loggedAt)}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="break-words text-sm font-medium">{l.title}</span>
+        {l.note ? <span className="whitespace-pre-wrap break-words text-[13px] text-muted-foreground">{l.note}</span> : null}
+        <span>
+          <Badge variant={LV[l.kind] || 'default'}>{label(LOG_KINDS, l.kind)}</Badge>
+        </span>
+      </span>
+      <Avatar name={l.author} className="size-6 text-[10px]" />
+    </button>
+  );
+}
+
+// Elle tutulan günlük: ne yaptığını tek satırla yaz, sonradan tarihe göre geri dön.
+export function LogPanel({ logs, onAdd, onOpen }) {
+  const [text, setText] = useState('');
+  const [kind, setKind] = useState('');
+  const [filter, setFilter] = useState('');
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  // Tür seçilmediyse metne göre tahmin edilir: sürüm ya da yayın geçen satırlar "Yayın" sayılır.
+  const guess = /(yayın|sürüm|versiyon|release|deploy|\bv?\d+\.\d+)/i.test(text) ? 'yayin' : 'not';
+  const effective = kind || guess;
+  async function submit(e) {
+    e.preventDefault();
+    const title = text.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    const ok = await onAdd({ title, kind: effective, loggedAt: new Date().toISOString() });
+    setBusy(false);
+    if (ok) {
+      setText('');
+      setKind('');
+    }
+  }
+  const needle = q.trim().toLocaleLowerCase('tr');
+  const list = logs.filter((l) => (!filter || l.kind === filter) && (!needle || `${l.title} ${l.note}`.toLocaleLowerCase('tr').includes(needle)));
+  const groups = {};
+  list.forEach((l) => (groups[day(l.loggedAt)] = groups[day(l.loggedAt)] || []).push(l));
+  const t = today();
+  return (
+    <div className="flex max-w-3xl flex-col gap-5">
+      <form onSubmit={submit} className="flex flex-col gap-2 rounded-lg border bg-card p-3">
+        <label htmlFor="log-text" className="text-xs font-medium text-muted-foreground">
+          Ne yaptın?
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <Input id="log-text" className="min-w-52 flex-1" placeholder="Örn. 1.0.2 sürümünü yayınladım" value={text} onChange={(e) => setText(e.target.value)} maxLength={300} />
+          <Pick className="w-36" ariaLabel="Tür" value={effective} onChange={setKind} options={LOG_KINDS} />
+          <Button type="submit" disabled={busy || !text.trim()}>
+            <Plus /> Ekle
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Şu anın tarihi ve saatiyle kaydedilir. Ayrıntı eklemek ya da tarihi değiştirmek için kayda tıkla.</p>
+      </form>
+
+      {logs.length ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Input className="min-w-44 flex-1 sm:max-w-xs" type="search" aria-label="Günlükte ara" placeholder="Günlükte ara" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Pick className="w-40" ariaLabel="Türe göre süz" value={filter} onChange={setFilter} options={LOG_KINDS} placeholder="Tüm türler" />
+          <span className="text-[13px] tabular-nums text-muted-foreground">{list.length} kayıt</span>
+        </div>
+      ) : null}
+
+      {!logs.length ? <Empty>Günlük boş. Yaptığın ilk işi yukarıya yaz.</Empty> : null}
+      {logs.length && !list.length ? <Empty>Aramana uyan günlük kaydı yok.</Empty> : null}
+      {Object.keys(groups)
+        .sort()
+        .reverse()
+        .map((d) => (
+          <Section key={d} title={(d === t ? 'Bugün · ' : '') + fmt(d, true)} count={groups[d].length}>
+            <div className="flex flex-col gap-2">
+              {groups[d].map((l) => (
+                <LogRow key={l.id} l={l} onOpen={onOpen} />
+              ))}
+            </div>
+          </Section>
+        ))}
     </div>
   );
 }

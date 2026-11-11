@@ -8,7 +8,7 @@ import { applyFilters, isDone, matchPreset, today, uniq, CAT, PRESETS } from '@/
 import { Button } from '@/components/ui/button';
 import { Rail, Sidebar, MobileStrip, BottomNav, VIEW_TITLES, isIssueView } from '@/components/board/shell';
 import { FilterBar, Attention, IssueTable, KanbanView, TimelineView } from '@/components/board/issues';
-import { WeekPanel, DecisionsPanel, RemindersPanel, SettingsPanel } from '@/components/board/panels';
+import { WeekPanel, DecisionsPanel, RemindersPanel, LogPanel, SettingsPanel } from '@/components/board/panels';
 import { EditDialog } from '@/components/board/dialogs';
 import { Empty, PeopleContext } from '@/components/board/bits';
 
@@ -89,6 +89,7 @@ export default function Board() {
   const records = data ? data.records : [];
   const decisions = data ? data.decisions : [];
   const reminders = data ? data.reminders : [];
+  const logs = data && data.logs ? data.logs : [];
   const meta = data ? data.meta : { services: [] };
   const projectName = meta.project ? meta.project.name : '';
 
@@ -151,7 +152,7 @@ export default function Board() {
   if (!data) {
     body = <Empty>{error ? `Kayıtlara ulaşılamadı: ${error}` : 'Kayıtlar yükleniyor…'}</Empty>;
   } else if (view === 'hafta') {
-    body = <WeekPanel projectName={projectName} records={records} decisions={decisions} onOpenRecord={openRecord} onOpenDecision={(d) => setDialog({ table: 'decisions', item: d })} toast={toast} />;
+    body = <WeekPanel projectName={projectName} records={records} decisions={decisions} logs={logs} onOpenRecord={openRecord} onOpenDecision={(d) => setDialog({ table: 'decisions', item: d })} onOpenLog={(l) => setDialog({ table: 'logs', item: l })} toast={toast} />;
   } else if (view === 'kararlar') {
     body = <DecisionsPanel decisions={decisions} onOpen={(d) => setDialog({ table: 'decisions', item: d })} onNew={() => setDialog({ table: 'decisions', item: null })} />;
   } else if (view === 'hatirlatmalar') {
@@ -163,6 +164,8 @@ export default function Board() {
         onToggle={(m) => run(() => api('PUT', `${base}/data/reminders/${m.id}`, { done: !m.done }))}
       />
     );
+  } else if (view === 'gunluk') {
+    body = <LogPanel logs={logs} onAdd={(entry) => run(() => api('POST', `${base}/data/logs`, entry))} onOpen={(l) => setDialog({ table: 'logs', item: l })} />;
   } else if (view === 'ayarlar') {
     body = (
       <SettingsPanel
@@ -244,7 +247,7 @@ export default function Board() {
           <div className="flex flex-col gap-4 p-4 pb-24 lg:p-6 lg:pb-8">
             {data && error ? <div className="rounded-md border border-high/50 bg-high/10 px-3.5 py-2.5 text-sm text-high">Veri güncellenemedi: {error}</div> : null}
             {data && issueView ? <MobileStrip view={view} preset={preset} setPreset={setPreset} counts={counts} /> : null}
-            {data && view !== 'ayarlar' && view !== 'kararlar' && view !== 'hatirlatmalar' ? <Attention records={records} onOpen={openRecord} /> : null}
+            {data && view !== 'ayarlar' && view !== 'kararlar' && view !== 'hatirlatmalar' && view !== 'gunluk' ? <Attention records={records} onOpen={openRecord} /> : null}
             {data && issueView && records.length ? <FilterBar records={records} f={filters} setF={setFilters} preset={preset} setPreset={setPreset} sort={sort} setSort={setSort} /> : null}
             {body}
           </div>
