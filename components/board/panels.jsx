@@ -424,6 +424,7 @@ export function SettingsPanel({ meta, busy, onSaveProfile, onSaveProject, onSave
             </Field>
             <Field label="Üyeler (e-posta, virgülle)" htmlFor="set-members">
               <Input id="set-members" placeholder="Bu projede birlikte çalışacağın kişiler" {...bind('members')} />
+              <span className="text-xs text-muted-foreground">Yeni eklediğin kişilere kaydedince davet maili gider.</span>
             </Field>
             <div className="flex flex-wrap items-center gap-3 md:col-span-2">
               <Button type="submit">Kaydet</Button>

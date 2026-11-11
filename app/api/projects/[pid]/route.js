@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { guard, fail } from '@/lib/auth';
+import { guard, fail, memberEmails } from '@/lib/auth';
+import { sendMail, inviteMail } from '@/lib/mail';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,9 +18,28 @@ export async function PUT(req, { params }) {
   if (notify && !EMAIL.test(notify)) return NextResponse.json({ error: 'Bildirim adresi geçerli bir e-posta olmalı' }, { status: 400 });
   const bad = members.find((m) => !EMAIL.test(m));
   if (bad) return NextResponse.json({ error: `Geçersiz üye adresi: ${bad}` }, { status: 400 });
+  if (members.length > 30) return NextResponse.json({ error: 'Bir projeye en fazla 30 üye eklenebilir' }, { status: 400 });
   try {
     await sql()`UPDATE projects SET name = ${name}, notify_email = ${notify}, default_owner = ${owner}, members = ${members.join(', ')} WHERE id = ${pid}`;
-    return NextResponse.json({ ok: true });
+    // Listeye yeni eklenen adreslere davet maili gider; zaten üye olanlara tekrar gönderilmez.
+    const already = memberEmails(g.project);
+    const added = Array.from(new Set(members)).filter((m) => !already.includes(m));
+    let invited = 0;
+    const failed = [];
+    for (const to of added) {
+      try {
+        await sendMail({
+          to,
+          subject: `Night Watch: ${name} projesine eklendin`,
+          html: inviteMail({ projectName: name, inviter: g.user.name || g.user.email, origin: req.nextUrl.origin }),
+        });
+        invited += 1;
+      } catch (e) {
+        console.error('[invite] davet gönderilemedi:', e && e.message);
+        failed.push(to);
+      }
+    }
+    return NextResponse.json({ ok: true, invited, failed });
   } catch (e) {
     return fail(e);
   }

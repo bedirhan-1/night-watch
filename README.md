@@ -26,6 +26,8 @@ Kayıt herkese açıktır: giriş ekranına adresini yazan herkese bağlantı gi
 - **Sahip** (projeyi açan kişi): ayarları, servis token'larını ve üyeleri yönetir, projeyi siler.
 - **Üye** (projenin Ayarlar > Üyeler alanındaki adresler): o projeyi görür, kayıt ekleyip düzenler; token'ları ve ayarları göremez.
 
+Üye eklenince o adrese davet maili gider. Bir kayıt başka bir üyeye atandığında o kişiye bildirim maili gönderilir.
+
 Giriş bağlantıları sınırlıdır: adres başına dakikada 1 ve saatte 5, tüm uygulama için günde `DAILY_LOGIN_MAILS` (varsayılan 80). Bu sınır Resend kotasını ve gönderen itibarını korur.
 
 ## Servis token'ları

@@ -169,7 +169,17 @@ export default function Board() {
         meta={meta}
         busy={busy}
         onSaveProfile={(f) => run(() => api('PUT', '/api/me', f), 'Profil kaydedildi.')}
-        onSaveProject={(f) => run(() => api('PUT', base, f), 'Proje ayarları kaydedildi.')}
+        onSaveProject={(f) =>
+          run(
+            () => api('PUT', base, f),
+            (j) =>
+              j.failed && j.failed.length
+                ? `Kaydedildi, ancak şu adreslere davet gönderilemedi: ${j.failed.join(', ')}`
+                : j.invited
+                  ? `Kaydedildi. ${j.invited} kişiye davet maili gönderildi.`
+                  : 'Proje ayarları kaydedildi.',
+          )
+        }
         onSaveCreds={(values) => run(() => api('PUT', `${base}/credentials`, { values }), 'Bağlantı kaydedildi.')}
         onClearCreds={(key) => run(() => api('PUT', `${base}/credentials`, { clear: key }), 'Bağlantı kaldırıldı.')}
         onRun={() => check(false)}

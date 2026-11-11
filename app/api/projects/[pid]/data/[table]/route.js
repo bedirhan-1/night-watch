@@ -3,6 +3,7 @@ import { sql } from '@/lib/db';
 import { guard, fail } from '@/lib/auth';
 import { pick } from '@/lib/crud';
 import { toCamel } from '@/lib/util';
+import { notifyAssignment } from '@/lib/notify';
 
 export async function POST(req, { params }) {
   const { pid, table } = await params;
@@ -16,6 +17,7 @@ export async function POST(req, { params }) {
     const keys = Object.keys(data);
     const text = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map((_, i) => '$' + (i + 1)).join(', ')}) RETURNING *`;
     const rows = await sql().query(text, keys.map((k) => data[k]));
+    if (table === 'records') await notifyAssignment({ project: g.project, record: rows[0], previousOwner: '', actor: g.user, origin: req.nextUrl.origin });
     return NextResponse.json(toCamel(rows[0]));
   } catch (e) {
     return fail(e);
