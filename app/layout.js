@@ -2,10 +2,14 @@ import './globals.css';
 
 export const metadata = {
   title: 'Night Watch',
+  description: 'Projelerinin başında nöbet tutar',
+  applicationName: 'Night Watch',
+  appleWebApp: { title: 'Night Watch', statusBarStyle: 'black-translucent' },
+  openGraph: { title: 'Night Watch', description: 'Projelerinin başında nöbet tutar', siteName: 'Night Watch', type: 'website' },
   robots: { index: false, follow: false },
 };
 
-export const viewport = { width: 'device-width', initialScale: 1, themeColor: '#0a0f24' };
+export const viewport = { width: 'device-width', initialScale: 1, themeColor: '#1f1d2a' };
 
 export default function RootLayout({ children }) {
   return (
