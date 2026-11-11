@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CalendarDays, Clock, Gavel, Inbox, Kanban, List, LogOut, Folder, Settings, Shield, User } from 'lucide-react';
+import { Bell, CalendarDays, Clock, Gavel, Inbox, Kanban, List, LogOut, Folder, Settings, User } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { CAT, PRESETS, initials } from '@/lib/board';
@@ -29,11 +29,15 @@ export const VIEW_TITLES = {
 export const isIssueView = (v) => v === 'akis' || v === 'kanban' || v === 'zaman';
 const sectionActive = (key, view) => (key === 'akis' ? isIssueView(view) : key === view);
 
+// Night Watch amblemi: mor daire içinde karga başı. Aynı çizim app/icon.svg içinde sekme ikonu olarak durur.
 export function Logo({ className }) {
   return (
-    <span className={cn('inline-flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_2px_0_rgba(0,0,0,.3)]', className)}>
-      <Shield className="size-5" />
-    </span>
+    <svg viewBox="0 0 120 120" role="img" aria-label="Night Watch" className={cn('size-9 shrink-0 drop-shadow-[0_2px_0_rgba(0,0,0,.3)]', className)}>
+      <circle cx="60" cy="60" r="58" className="fill-primary" />
+      <path d="M30 98 C26 74 30 50 48 40 C62 32 78 38 82 52 L106 62 L82 70 C78 84 70 94 58 100 L52 88 L46 100 L40 90 Z" className="fill-chrome" />
+      <path d="M82 52 L106 62 L82 62 Z" fill="#35324a" />
+      <circle cx="66" cy="54" r="5" className="fill-primary-foreground" />
+    </svg>
   );
 }
 
