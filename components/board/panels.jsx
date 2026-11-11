@@ -162,8 +162,8 @@ export function LogPanel({ logs, onAdd, onOpen }) {
   const [filter, setFilter] = useState('');
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
-  // Tür seçilmediyse metne göre tahmin edilir: sürüm ya da yayın geçen satırlar "Yayın" sayılır.
-  const guess = /(yayın|sürüm|versiyon|release|deploy|\bv?\d+\.\d+)/i.test(text) ? 'yayin' : 'not';
+  // Tür seçilmediyse varsayılan "Olay"dır; sürüm ya da yayın geçen satırlar "Yayın" sayılır.
+  const guess = /(yayın|sürüm|versiyon|release|deploy|\bv?\d+\.\d+)/i.test(text) ? 'yayin' : 'olay';
   const effective = kind || guess;
   async function submit(e) {
     e.preventDefault();

@@ -286,13 +286,13 @@ function ReminderForm({ item, onSave, onDelete, onClose }) {
 }
 
 function LogForm({ item, onSave, onDelete, onClose }) {
-  const [form, bind, pick] = useForm(item ? { ...item, when: toLocalInput(item.loggedAt) } : { title: '', note: '', kind: 'not', when: toLocalInput() });
+  const [form, bind, pick] = useForm(item ? { ...item, when: toLocalInput(item.loggedAt) } : { title: '', note: '', kind: 'olay', when: toLocalInput() });
   const [error, setError] = useState('');
   function submit(e) {
     e.preventDefault();
     if (!String(form.title || '').trim()) return setError('Ne yaptığını yaz.');
     const d = new Date(form.when);
-    onSave({ title: form.title.trim(), note: String(form.note || '').trim(), kind: form.kind || 'not', loggedAt: (isNaN(d) ? new Date() : d).toISOString() }, item && item.id);
+    onSave({ title: form.title.trim(), note: String(form.note || '').trim(), kind: form.kind || 'olay', loggedAt: (isNaN(d) ? new Date() : d).toISOString() }, item && item.id);
   }
   return (
     <form className={grid} onSubmit={submit} noValidate>
