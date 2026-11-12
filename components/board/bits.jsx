@@ -123,7 +123,12 @@ export function LateBadge({ record }) {
 
 export function SourceBadge({ record }) {
   if (!record.source || !SRC[record.source]) return null;
-  return <Badge variant="primary">{SRC[record.source]} · otomatik</Badge>;
+  return (
+    <>
+      <Badge variant="primary">{SRC[record.source]} · otomatik</Badge>
+      {record.occurrences > 1 ? <Badge title="Bu hata kaç kez geldi">{record.occurrences} kez</Badge> : null}
+    </>
+  );
 }
 
 const pill = 'inline-flex h-7 items-center gap-1.5 rounded-full border bg-chrome px-2.5 text-xs font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring';

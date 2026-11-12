@@ -14,13 +14,14 @@ export async function PUT(req, { params }) {
   const notify = String(body.notifyEmail || '').trim();
   const owner = String(body.defaultOwner || '').trim().slice(0, 80);
   const members = String(body.members || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+  const alertMode = ['hepsi', 'kritik', 'kapali'].includes(body.alertMode) ? body.alertMode : g.project.alert_mode || 'hepsi';
   if (!name) return NextResponse.json({ error: 'Proje adı gerekli' }, { status: 400 });
   if (notify && !EMAIL.test(notify)) return NextResponse.json({ error: 'Bildirim adresi geçerli bir e-posta olmalı' }, { status: 400 });
   const bad = members.find((m) => !EMAIL.test(m));
   if (bad) return NextResponse.json({ error: `Geçersiz üye adresi: ${bad}` }, { status: 400 });
   if (members.length > 30) return NextResponse.json({ error: 'Bir projeye en fazla 30 üye eklenebilir' }, { status: 400 });
   try {
-    await sql()`UPDATE projects SET name = ${name}, notify_email = ${notify}, default_owner = ${owner}, members = ${members.join(', ')} WHERE id = ${pid}`;
+    await sql()`UPDATE projects SET name = ${name}, notify_email = ${notify}, default_owner = ${owner}, members = ${members.join(', ')}, alert_mode = ${alertMode} WHERE id = ${pid}`;
     // Listeye yeni eklenen adreslere davet maili gider; zaten üye olanlara tekrar gönderilmez.
     const already = memberEmails(g.project);
     const added = Array.from(new Set(members)).filter((m) => !already.includes(m));

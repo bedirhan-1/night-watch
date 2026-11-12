@@ -303,8 +303,12 @@ export function RemindersPanel({ reminders, onOpen, onNew, onToggle }) {
   );
 }
 
-// [alan, etiket, tür] — tür: 0 düz metin, 1 gizli tek satır, 2 gizli çok satır
+// [alan, etiket, tür] — tür: 0 düz metin, 1 gizli tek satır, 2 gizli çok satır, 3 düz çok satır
+const isSecret = (f) => f[2] === 1 || f[2] === 2;
+const EVERY = [['5', '5 dakikada bir'], ['15', '15 dakikada bir'], ['60', 'Saatte bir'], ['360', '6 saatte bir']];
+const ALERT_MODES = [['hepsi', 'Yeni her otomatik kayıtta'], ['kritik', 'Yalnızca kritik olanlarda'], ['kapali', 'Gönderme (yalnızca sabah özeti)']];
 const SVCF = {
+  http: [['httpUrls', 'Kontrol edilecek adresler (her satıra bir adres)', 3]],
   vercel: [['vercelToken', 'Token', 1], ['vercelTeamId', 'Takım ID (isteğe bağlı)', 0], ['vercelProjects', 'Vercel proje adları (virgülle; boşsa hepsi)', 0]],
   github: [['githubToken', 'Token', 1], ['githubRepos', 'Depolar (sahip/depo ya da sahip/*, virgülle)', 0]],
   apple: [['ascKeyId', 'Key ID', 0], ['ascIssuerId', 'Issuer ID', 0], ['ascPrivateKey', '.p8 dosyasının içeriği', 2], ['ascAppId', 'App ID (isteğe bağlı)', 0]],
@@ -359,14 +363,17 @@ function ServiceCard({ s, admin, creds, onSave, onClear }) {
     setVals({});
   }, [creds]);
   const fields = SVCF[s.key];
-  const value = (f) => (vals[f[0]] != null ? vals[f[0]] : f[2] ? '' : creds.values[f[0]] || '');
+  const value = (f) => (vals[f[0]] != null ? vals[f[0]] : isSecret(f) ? '' : creds.values[f[0]] || '');
+  const everyKey = `${s.key}Every`;
+  const every = vals[everyKey] != null ? vals[everyKey] : creds.values[everyKey] || '';
   function save() {
     const out = {};
     fields.forEach((f) => {
       const v = String(value(f)).trim();
-      if (f[2] && !v) return;
+      if (isSecret(f) && !v) return;
       out[f[0]] = v;
     });
+    out[everyKey] = every;
     onSave(out);
   }
   return (
@@ -382,6 +389,7 @@ function ServiceCard({ s, admin, creds, onSave, onClear }) {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
+          {s.configured && s.every ? <Badge variant="primary">{label(EVERY, String(s.every))}</Badge> : null}
           {!s.configured ? <Badge>Bağlı değil</Badge> : !s.ranAt ? <Badge>Henüz çalışmadı</Badge> : s.ok ? <Badge variant="done">Çalışıyor</Badge> : <Badge variant="crit">Hata</Badge>}
           {admin ? (
             <Button variant="outline" size="sm" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -395,14 +403,18 @@ function ServiceCard({ s, admin, creds, onSave, onClear }) {
           <Guide service={s.key} />
           {fields.map((f) => {
             const id = `cred-${f[0]}`;
-            const ph = f[2] && creds.set[f[0]] ? 'Kayıtlı. Değiştirmek için yeni değer gir' : '';
+            const ph = isSecret(f) && creds.set[f[0]] ? 'Kayıtlı. Değiştirmek için yeni değer gir' : f[2] === 3 ? 'https://api.ornek.com/health' : '';
             const common = { id, value: value(f), placeholder: ph, autoComplete: 'off', onChange: (e) => setVals({ ...vals, [f[0]]: e.target.value }) };
             return (
               <Field key={f[0]} label={f[1]} htmlFor={id}>
-                {f[2] === 2 ? <Textarea className="font-mono text-[13px]" {...common} /> : <Input type={f[2] ? 'password' : 'text'} {...common} />}
+                {f[2] >= 2 ? <Textarea className="font-mono text-[13px]" {...common} /> : <Input type={f[2] ? 'password' : 'text'} {...common} />}
               </Field>
             );
           })}
+          <Field label="Kontrol sıklığı" htmlFor={`every-${s.key}`}>
+            <Pick id={`every-${s.key}`} className="sm:max-w-xs" value={every} onChange={(v) => setVals({ ...vals, [everyKey]: v })} options={EVERY} placeholder="Günde bir (sabah 08:00)" />
+            <span className="text-xs text-muted-foreground">Günde birden sık kontrol, bir zamanlayıcı kurulduysa çalışır (bkz. docs/backend.md). Yeni sorun bulunursa anında mail gider.</span>
+          </Field>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={save}>
               Kaydet
@@ -490,14 +502,101 @@ function ProfileSection({ me, onSave }) {
   );
 }
 
-export function SettingsPanel({ meta, busy, onSaveProfile, onSaveProject, onSaveCreds, onClearCreds, onRun, onMail, onLogout, onDeleteProject }) {
+const preCls = 'overflow-x-auto rounded-md border bg-chrome px-3 py-2.5 font-mono text-[12px] leading-relaxed text-muted-foreground';
+
+// Kendi backend'inden hata göndermek için adres ve örnek kod.
+function IngestCard({ url, onRegen, toast }) {
+  const [open, setOpen] = useState(false);
+  if (!url) return null;
+  async function copy(text, what) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`${what} kopyalandı.`);
+    } catch {
+      toast('Kopyalanamadı.');
+    }
+  }
+  const curl = `curl -X POST "${url}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"title":"Ödeme servisi 500 dönüyor","level":"error","environment":"production","service":"api","message":"TypeError: ..."}'`;
+  const node = `// .env: NIGHTWATCH_URL=${url}
+export async function reportToNightWatch(err, extra = {}) {
+  try {
+    await fetch(process.env.NIGHTWATCH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: err.message,
+        message: err.stack,
+        level: 'error',
+        environment: process.env.NODE_ENV === 'production' ? 'production' : 'staging',
+        service: 'api',
+        ...extra,
+      }),
+    });
+  } catch {
+    // Bildirim gönderilemese de uygulama akışı bozulmasın.
+  }
+}`;
+  return (
+    <div className="rounded-lg border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-sm font-medium">Kendi backend'inden hata gönder</div>
+          <div className="mt-0.5 text-[13px] text-muted-foreground">Backend'in bir hata yakaladığında bu adrese istek atar; hata kayıt olarak açılır ve mail gider.</div>
+        </div>
+        <Button variant="outline" size="sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? 'Gizle' : 'Nasıl bağlanır'}
+        </Button>
+      </div>
+      {open ? (
+        <div className="grid gap-3 border-t px-4 py-3.5 text-[13px]">
+          <Field label="Hata gönderme adresi (gizli tut)" htmlFor="ingest-url">
+            <div className="flex gap-2">
+              <Input id="ingest-url" readOnly value={url} className="font-mono text-[12px]" onFocus={(e) => e.target.select()} />
+              <Button variant="outline" onClick={() => copy(url, 'Adres')}>
+                <Copy /> Kopyala
+              </Button>
+            </div>
+          </Field>
+          <p className="leading-relaxed text-muted-foreground">
+            Bu adrese JSON gövdeli bir POST isteği at. Yalnızca <b className="text-foreground">title</b> zorunlu; <b className="text-foreground">level</b> (critical, error, warning, info), environment, service, message, url ve
+            fingerprint isteğe bağlı. Aynı hata tekrar gelirse yeni kayıt açılmaz, mevcut kaydın sayacı artar; çözülmüş bir hata yeniden gelirse kayıt yeniden açılır ve mail gider.
+          </p>
+          <div className="flex items-center justify-between">
+            <span className="font-medium">Terminalden dene</span>
+            <Button variant="ghost" size="sm" onClick={() => copy(curl, 'Komut')}>
+              <Copy /> Kopyala
+            </Button>
+          </div>
+          <pre className={preCls}>{curl}</pre>
+          <div className="flex items-center justify-between">
+            <span className="font-medium">Node.js / NestJS</span>
+            <Button variant="ghost" size="sm" onClick={() => copy(node, 'Kod')}>
+              <Copy /> Kopyala
+            </Button>
+          </div>
+          <pre className={preCls}>{node}</pre>
+          <div className="flex flex-wrap items-center gap-3">
+            <a href="https://github.com/bedirhan-1/night-watch/blob/main/docs/backend.md" target="_blank" rel="noopener noreferrer" className={linkCls}>
+              Ayrıntılı rehber <ExternalLink className="size-3" />
+            </a>
+            <Confirm size="sm" confirmText="Emin misin? Eski adres çalışmaz" onConfirm={onRegen}>
+              Adresi yenile
+            </Confirm>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function SettingsPanel({ meta, busy, toast, onRegenIngest, onSaveProfile, onSaveProject, onSaveCreds, onClearCreds, onRun, onMail, onLogout, onDeleteProject }) {
   const p = meta.project || {};
   const admin = !!meta.admin;
   const creds = meta.credentials || { values: {}, set: {} };
-  const [form, setForm] = useState({ name: '', notifyEmail: '', defaultOwner: '', members: '' });
+  const [form, setForm] = useState({ name: '', notifyEmail: '', defaultOwner: '', members: '', alertMode: 'hepsi' });
   useEffect(() => {
-    setForm({ name: p.name || '', notifyEmail: p.notifyEmail || '', defaultOwner: p.defaultOwner || '', members: p.members || '' });
-  }, [p.name, p.notifyEmail, p.defaultOwner, p.members]);
+    setForm({ name: p.name || '', notifyEmail: p.notifyEmail || '', defaultOwner: p.defaultOwner || '', members: p.members || '', alertMode: p.alertMode || 'hepsi' });
+  }, [p.name, p.notifyEmail, p.defaultOwner, p.members, p.alertMode]);
   const bind = (k) => ({ value: form[k], onChange: (e) => setForm({ ...form, [k]: e.target.value }) });
   return (
     <div className="flex max-w-3xl flex-col gap-7">
@@ -524,6 +623,10 @@ export function SettingsPanel({ meta, busy, onSaveProfile, onSaveProject, onSave
               <Input id="set-members" placeholder="Bu projede birlikte çalışacağın kişiler" {...bind('members')} />
               <span className="text-xs text-muted-foreground">Yeni eklediğin kişilere kaydedince davet maili gider.</span>
             </Field>
+            <Field label="Anında mail" htmlFor="set-alert" className="md:col-span-2">
+              <Pick id="set-alert" className="sm:max-w-sm" value={form.alertMode} onChange={(v) => setForm({ ...form, alertMode: v })} options={ALERT_MODES} />
+              <span className="text-xs text-muted-foreground">Backend'inden gelen hatalar ve sık kontrollerin bulduğu sorunlar için. Günde en fazla 20 anında mail gider.</span>
+            </Field>
             <div className="flex flex-wrap items-center gap-3 md:col-span-2">
               <Button type="submit">Kaydet</Button>
               <span className="text-[13px] text-muted-foreground">
@@ -542,6 +645,7 @@ export function SettingsPanel({ meta, busy, onSaveProfile, onSaveProject, onSave
             gösterilmez.
           </p>
         ) : null}
+        {admin ? <IngestCard url={meta.ingestUrl} onRegen={onRegenIngest} toast={toast} /> : null}
         {(meta.services || []).map((s) => (
           <ServiceCard key={s.key} s={s} admin={admin} creds={creds} onSave={onSaveCreds} onClear={() => onClearCreds(s.key)} />
         ))}

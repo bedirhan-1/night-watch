@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { guard, fail } from '@/lib/auth';
 import { decrypt, encrypt, ALL_KEYS, SERVICE_KEYS } from '@/lib/creds';
+import { parseUrls, badUrl } from '@/lib/checks/http';
 
 // { values: {...} } gönderilen alanları günceller; gönderilmeyen alanlar olduğu gibi kalır.
 // { clear: "vercel" } o servisin tüm bilgilerini siler.
@@ -11,6 +12,12 @@ export async function PUT(req, { params }) {
   if (g.error) return g.error;
   const body = await req.json().catch(() => ({}));
   try {
+    if (body.values && body.values.httpUrls) {
+      for (const u of parseUrls(body.values.httpUrls)) {
+        const why = badUrl(u);
+        if (why) return NextResponse.json({ error: `${u}: ${why}` }, { status: 400 });
+      }
+    }
     const creds = decrypt(g.project.credentials_enc);
     if (body.clear && SERVICE_KEYS[body.clear]) {
       for (const k of SERVICE_KEYS[body.clear]) delete creds[k];

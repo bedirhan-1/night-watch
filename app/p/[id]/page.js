@@ -171,6 +171,8 @@ export default function Board() {
       <SettingsPanel
         meta={meta}
         busy={busy}
+        toast={toast}
+        onRegenIngest={() => run(() => api('POST', `${base}/ingest-key`, {}), 'Adres yenilendi. Backend’indeki adresi güncellemeyi unutma.')}
         onSaveProfile={(f) => run(() => api('PUT', '/api/me', f), 'Profil kaydedildi.')}
         onSaveProject={(f) =>
           run(

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { guard, fail, memberEmails } from '@/lib/auth';
+import { guard, fail, memberEmails, newToken } from '@/lib/auth';
+import { everyMinutes } from '@/lib/sync';
 import { toCamel } from '@/lib/util';
 import { SERVICES } from '@/lib/sync';
 import { decrypt, configured, publicView } from '@/lib/creds';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
   const { pid } = await params;
   const g = await guard(pid);
   if (g.error) return g.error;
@@ -30,12 +31,18 @@ export async function GET(_req, { params }) {
     const on = configured(creds);
     const services = SERVICES.map((s) => {
       const c = checks.find((x) => x.service === s.key);
-      return { key: s.key, label: s.label, configured: on[s.key], ok: c ? c.ok : null, message: c ? c.message : credError, ranAt: c ? c.ran_at : '' };
+      return { key: s.key, label: s.label, every: everyMinutes(creds, s.key), configured: on[s.key], ok: c ? c.ok : null, message: c ? c.message : credError, ranAt: c ? c.ran_at : '' };
     });
     const p = g.project;
     // Projedeki kişiler: sahip ve üyeler. Henüz giriş yapmamış üyeler yalnızca e-postalarıyla görünür.
     const emails = memberEmails(p);
     const known = await q`SELECT email, name, avatar FROM users WHERE email = ANY(${emails}::text[])`;
+    // Hata gönderme anahtarı ilk açılışta üretilir; yalnızca proje sahibine gösterilir.
+    let ingestKey = p.ingest_key;
+    if (g.owner && !ingestKey) {
+      ingestKey = newToken();
+      await q`UPDATE projects SET ingest_key = ${ingestKey} WHERE id = ${pid}`;
+    }
     const people = emails.map((email) => {
       const u = known.find((x) => x.email === email);
       return { email, name: (u && u.name) || '', avatar: (u && u.avatar) || '' };
@@ -52,9 +59,10 @@ export async function GET(_req, { params }) {
         people,
         mailConfigured: !!process.env.RESEND_API_KEY,
         project: g.owner
-          ? { id: p.id, name: p.name, notifyEmail: p.notify_email, defaultOwner: p.default_owner, members: p.members, owner: p.owner_email }
+          ? { id: p.id, name: p.name, notifyEmail: p.notify_email, defaultOwner: p.default_owner, members: p.members, owner: p.owner_email, alertMode: p.alert_mode || 'hepsi' }
           : { id: p.id, name: p.name, owner: p.owner_email },
         credentials: g.owner ? publicView(creds) : null,
+        ingestUrl: g.owner ? `${(process.env.APP_URL || req.nextUrl.origin).replace(/\/$/, '')}/api/ingest/${ingestKey}` : '',
         services,
       },
     });

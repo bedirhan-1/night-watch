@@ -45,6 +45,10 @@ Her projenin Ayarlar sekmesinden girilir, veritabanında AES-256-GCM ile şifrel
 
 Vercel token'ı hesaptaki tüm projeleri görür; "Vercel proje adları" alanına yalnızca bu projeye ait olanları yaz.
 
+## Kendi backend'ini bağlama
+
+Backend'inden hata gönderme, adres sağlık kontrolü, anında mail ve günde birden sık kontrol için zamanlayıcı kurulumu: [docs/backend.md](docs/backend.md).
+
 ## Zamanlama
 
 `vercel.json` içindeki cron her gün 05:00 UTC'de (İstanbul 08:00) `/api/cron/daily` adresini çağırır; tüm projeler sırayla yoklanır ve her projenin bildirim adresine ayrı özet gider. Vercel Hobby planında cron günde en fazla bir kez çalışır ve saat içinde gecikebilir; daha sık kontrol için Pro plan gerekir ya da Ayarlar'daki "Şimdi kontrol et" kullanılır.
