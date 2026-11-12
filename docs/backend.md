@@ -10,17 +10,39 @@ Night Watch backend'ini üç yoldan izler. Üçü birbirinden bağımsızdır; i
 
 ## Hata gönderme
 
-Projenin Ayarlar sekmesinde "Kendi backend'inden hata gönder" kartını aç. Oradaki adres projene özeldir ve şifre gibidir: koduna gömme, ortam değişkeninde tut (`NIGHTWATCH_URL`).
+### Önerilen: nightwatch-node paketi
 
-Bu adrese JSON gövdeli bir `POST` isteği at:
+Sentry'nin backend'deki hataları yakalama biçimiyle aynı: backend'ine küçük bir paket kurarsın, uygulama açılırken bir kez başlatırsın. Paket Node'un yakalanmayan hata ve reddedilen promise olaylarına bağlanır, Express ya da NestJS'te hata katmanı olarak çalışır, stack trace'i çözüp aynı hatayı gruplar, istek ve sürüm bilgisini ekler ve arka planda gönderir.
+
+Projenin Ayarlar sekmesinde "Kendi backend'inden hata gönder" kartını aç; oradaki adres projene özeldir ve şifre gibidir. Ortam değişkenine koy:
 
 ```
-curl -X POST "$NIGHTWATCH_URL" \
+NIGHTWATCH_DSN=https://SENIN-ADRESIN/api/ingest/...
+```
+
+NestJS için `main.ts`:
+
+```ts
+import * as nightwatch from 'nightwatch-node';
+import { NightWatchFilter } from 'nightwatch-node/nestjs';
+
+nightwatch.init({ service: 'api' });
+// ...
+const { httpAdapter } = app.get(HttpAdapterHost);
+app.useGlobalFilters(new NightWatchFilter(httpAdapter));
+```
+
+Express, elle gönderme, seçenekler ve gizli bilgileri ayıklama: [sdk/node/README.md](../sdk/node/README.md).
+
+### Paketsiz: doğrudan HTTP
+
+Node dışında bir dil kullanıyorsan ya da paket kurmak istemiyorsan aynı adrese JSON gövdeli bir `POST` isteği at:
+
+```
+curl -X POST "$NIGHTWATCH_DSN" \
   -H "Content-Type: application/json" \
   -d '{"title":"Ödeme servisi 500 dönüyor","level":"error","environment":"production","service":"api"}'
 ```
-
-### Alanlar
 
 | Alan | Zorunlu | Açıklama |
 | --- | --- | --- |
@@ -34,49 +56,12 @@ curl -X POST "$NIGHTWATCH_URL" \
 
 ### Tekrarlayan hatalar
 
-Aynı `fingerprint` (ya da aynı başlık) tek bir kayıtta toplanır:
+Aynı `fingerprint` tek bir kayıtta toplanır:
 
 - Açık bir kayıt varsa yeni kayıt açılmaz, "kaç kez" sayacı artar ve mail gitmez.
 - Kayıt çözülmüşse yeniden açılır ve mail gider.
 
-Başlığında değişken bilgi olan hatalarda (kullanıcı kimliği, istek numarası) her hata ayrı kayıt olur. Bunu önlemek için sabit bir `fingerprint` gönder, örn. `"payment-timeout"`.
-
-### NestJS örneği
-
-Yakalanmayan tüm hataları bildiren bir filtre:
-
-```ts
-import { ArgumentsHost, Catch, HttpException } from '@nestjs/common';
-import { BaseExceptionFilter } from '@nestjs/core';
-
-@Catch()
-export class NightWatchFilter extends BaseExceptionFilter {
-  catch(exception: unknown, host: ArgumentsHost) {
-    const status = exception instanceof HttpException ? exception.getStatus() : 500;
-    if (status >= 500 && process.env.NIGHTWATCH_URL) {
-      const err = exception as Error;
-      const req = host.switchToHttp().getRequest();
-      fetch(process.env.NIGHTWATCH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: err?.message ?? 'Bilinmeyen hata',
-          message: err?.stack,
-          level: 'error',
-          environment: process.env.NODE_ENV === 'production' ? 'production' : 'staging',
-          service: 'api',
-          fingerprint: `${req?.method} ${req?.route?.path} ${err?.name}`,
-        }),
-      }).catch(() => {});
-    }
-    super.catch(exception, host);
-  }
-}
-```
-
-`main.ts` içinde: `app.useGlobalFilters(new NightWatchFilter(app.get(HttpAdapterHost).httpAdapter));`
-
-Yalnızca 5xx hataları gönder; 4xx hatalar (yanlış istek, yetkisiz erişim) çoğunlukla kullanıcı kaynaklıdır ve panoyu doldurur.
+Paket bunu kendisi ayarlar. Doğrudan HTTP kullanıyorsan, başlığında değişken bilgi olan hatalarda (kullanıcı kimliği, istek numarası) sabit bir `fingerprint` gönder; yoksa her hata ayrı kayıt olur.
 
 ## Sağlık kontrolü
 

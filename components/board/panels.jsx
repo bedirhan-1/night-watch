@@ -517,25 +517,26 @@ function IngestCard({ url, onRegen, toast }) {
     }
   }
   const curl = `curl -X POST "${url}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"title":"Ödeme servisi 500 dönüyor","level":"error","environment":"production","service":"api","message":"TypeError: ..."}'`;
-  const node = `// .env: NIGHTWATCH_URL=${url}
-export async function reportToNightWatch(err, extra = {}) {
-  try {
-    await fetch(process.env.NIGHTWATCH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: err.message,
-        message: err.stack,
-        level: 'error',
-        environment: process.env.NODE_ENV === 'production' ? 'production' : 'staging',
-        service: 'api',
-        ...extra,
-      }),
-    });
-  } catch {
-    // Bildirim gönderilemese de uygulama akışı bozulmasın.
-  }
-}`;
+  const env = `NIGHTWATCH_DSN=${url}`;
+  const nest = `// npm install nightwatch-node
+// main.ts
+import * as nightwatch from 'nightwatch-node';
+import { NightWatchFilter } from 'nightwatch-node/nestjs';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+
+nightwatch.init({ service: 'api' }); // NIGHTWATCH_DSN ortam değişkenini okur
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new NightWatchFilter(httpAdapter));
+  await app.listen(3000);
+}
+bootstrap();`;
+  const express = `const nightwatch = require('nightwatch-node');
+nightwatch.init({ service: 'api' });
+// ...rotalarından sonra:
+app.use(nightwatch.expressErrorHandler());`;
   return (
     <div className="rounded-lg border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
@@ -558,26 +559,43 @@ export async function reportToNightWatch(err, extra = {}) {
             </div>
           </Field>
           <p className="leading-relaxed text-muted-foreground">
-            Bu adrese JSON gövdeli bir POST isteği at. Yalnızca <b className="text-foreground">title</b> zorunlu; <b className="text-foreground">level</b> (critical, error, warning, info), environment, service, message, url ve
-            fingerprint isteğe bağlı. Aynı hata tekrar gelirse yeni kayıt açılmaz, mevcut kaydın sayacı artar; çözülmüş bir hata yeniden gelirse kayıt yeniden açılır ve mail gider.
+            Sentry gibi: <b className="text-foreground">nightwatch-node</b> paketini kur, adresi ortam değişkenine koy, uygulama açılırken bir kez başlat. Yakalanmayan hatalar ve 500 hataları kendiliğinden gelir; aynı hata tek kayıtta
+            toplanır ve sayacı artar, çözülmüş bir hata yeniden gelirse kayıt yeniden açılır ve mail gider.
           </p>
           <div className="flex items-center justify-between">
-            <span className="font-medium">Terminalden dene</span>
+            <span className="font-medium">1. Ortam değişkeni</span>
+            <Button variant="ghost" size="sm" onClick={() => copy(env, 'Satır')}>
+              <Copy /> Kopyala
+            </Button>
+          </div>
+          <pre className={preCls}>{env}</pre>
+          <div className="flex items-center justify-between">
+            <span className="font-medium">2. NestJS</span>
+            <Button variant="ghost" size="sm" onClick={() => copy(nest, 'Kod')}>
+              <Copy /> Kopyala
+            </Button>
+          </div>
+          <pre className={preCls}>{nest}</pre>
+          <div className="flex items-center justify-between">
+            <span className="font-medium">Express kullanıyorsan</span>
+            <Button variant="ghost" size="sm" onClick={() => copy(express, 'Kod')}>
+              <Copy /> Kopyala
+            </Button>
+          </div>
+          <pre className={preCls}>{express}</pre>
+          <div className="flex items-center justify-between">
+            <span className="font-medium">Paketsiz, terminalden dene</span>
             <Button variant="ghost" size="sm" onClick={() => copy(curl, 'Komut')}>
               <Copy /> Kopyala
             </Button>
           </div>
           <pre className={preCls}>{curl}</pre>
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Node.js / NestJS</span>
-            <Button variant="ghost" size="sm" onClick={() => copy(node, 'Kod')}>
-              <Copy /> Kopyala
-            </Button>
-          </div>
-          <pre className={preCls}>{node}</pre>
           <div className="flex flex-wrap items-center gap-3">
+            <a href="https://github.com/bedirhan-1/night-watch/blob/main/sdk/node/README.md" target="_blank" rel="noopener noreferrer" className={linkCls}>
+              Paket belgeleri <ExternalLink className="size-3" />
+            </a>
             <a href="https://github.com/bedirhan-1/night-watch/blob/main/docs/backend.md" target="_blank" rel="noopener noreferrer" className={linkCls}>
-              Ayrıntılı rehber <ExternalLink className="size-3" />
+              Backend rehberi <ExternalLink className="size-3" />
             </a>
             <Confirm size="sm" confirmText="Emin misin? Eski adres çalışmaz" onConfirm={onRegen}>
               Adresi yenile

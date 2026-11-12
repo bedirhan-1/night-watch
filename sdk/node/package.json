@@ -1,0 +1,18 @@
+{
+  "name": "nightwatch-node",
+  "version": "0.1.0",
+  "description": "Node.js backend hatalarını Night Watch'a gönderir",
+  "license": "MIT",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": { "types": "./index.d.ts", "default": "./index.js" },
+    "./nestjs": { "types": "./nestjs.d.ts", "default": "./nestjs.js" }
+  },
+  "files": ["index.js", "index.d.ts", "nestjs.js", "nestjs.d.ts", "README.md"],
+  "engines": { "node": ">=18" },
+  "peerDependencies": { "@nestjs/common": ">=8", "@nestjs/core": ">=8" },
+  "peerDependenciesMeta": { "@nestjs/common": { "optional": true }, "@nestjs/core": { "optional": true } },
+  "scripts": { "test": "node test.js" },
+  "repository": { "type": "git", "url": "https://github.com/bedirhan-1/night-watch", "directory": "sdk/node" }
+}

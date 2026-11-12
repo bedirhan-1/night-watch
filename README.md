@@ -47,7 +47,7 @@ Vercel token'ı hesaptaki tüm projeleri görür; "Vercel proje adları" alanın
 
 ## Kendi backend'ini bağlama
 
-Backend'inden hata gönderme, adres sağlık kontrolü, anında mail ve günde birden sık kontrol için zamanlayıcı kurulumu: [docs/backend.md](docs/backend.md).
+Backend'ine kurulan `nightwatch-node` paketi ([sdk/node](sdk/node/README.md)), doğrudan HTTP ile hata gönderme, adres sağlık kontrolü, anında mail ve günde birden sık kontrol için zamanlayıcı kurulumu: [docs/backend.md](docs/backend.md).
 
 ## Zamanlama
 
