@@ -11,36 +11,36 @@ export interface Event {
 
 export interface Options {
   /** Night Watch'taki hata gönderme adresi. Verilmezse NIGHTWATCH_DSN okunur. */
-  dsn?: string;
+  dsn?: string | undefined;
   /** production, staging, development... Verilmezse NODE_ENV. */
-  environment?: string;
+  environment?: string | undefined;
   /** Sürüm, örn. 1.0.2. Verilmezse NIGHTWATCH_RELEASE ya da package.json sürümü. */
-  release?: string;
+  release?: string | undefined;
   /** Kaydın "proje alanı", örn. api. */
-  service?: string;
+  service?: string | undefined;
   /** Varsayılan: DSN varsa açık. */
-  enabled?: boolean;
+  enabled?: boolean | undefined;
   /** Yakalanmayan hataları ve reddedilen promise'leri yakala. Varsayılan: true. */
-  captureUnhandled?: boolean;
+  captureUnhandled?: boolean | undefined;
   /** Yakalanmayan hatadan sonra süreci kapat (Node'un varsayılanı). Varsayılan: true. */
-  exitOnUncaught?: boolean;
+  exitOnUncaught?: boolean | undefined;
   /** Aynı hatayı bu kadar saniye içinde tekrar gönderme. Varsayılan: 60. */
-  dedupeSeconds?: number;
+  dedupeSeconds?: number | undefined;
   /** Gönderim zaman aşımı. Varsayılan: 3000 ms. */
-  timeoutMs?: number;
+  timeoutMs?: number | undefined;
   /** Göndermeden önce olayı değiştir; null dönerse gönderilmez. */
-  beforeSend?: (event: Event, error: unknown) => Event | null;
-  debug?: boolean;
+  beforeSend?: (event: Event, error: unknown) => Event | null | undefined;
+  debug?: boolean | undefined;
 }
 
 export interface CaptureContext {
-  level?: Level;
-  fingerprint?: string;
-  service?: string;
-  request?: unknown;
-  user?: { id?: string | number; email?: string };
-  tags?: Record<string, string | number>;
-  extra?: unknown;
+  level?: Level | undefined;
+  fingerprint?: string | undefined;
+  service?: string | undefined;
+  request?: unknown | undefined;
+  user?: { id?: string | number; email?: string } | undefined;
+  tags?: Record<string, string | number> | undefined;
+  extra?: unknown | undefined;
 }
 
 export function init(options?: Options): Required<Omit<Options, 'dsn'>>;

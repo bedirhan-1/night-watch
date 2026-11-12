@@ -153,7 +153,7 @@ async function send(event, attempt = 1) {
   try {
     const r = await fetch(state.dsn, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'nightwatch-node/0.1.0' },
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'nightwatch-node/0.1.1' },
       body: JSON.stringify(event),
       signal: AbortSignal.timeout(state.options.timeoutMs),
     });
