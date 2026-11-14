@@ -49,6 +49,10 @@ Vercel token'ı hesaptaki tüm projeleri görür; "Vercel proje adları" alanın
 
 Backend'ine kurulan `nightwatch-node` paketi ([sdk/node](sdk/node/README.md)), doğrudan HTTP ile hata gönderme, adres sağlık kontrolü, anında mail ve günde birden sık kontrol için zamanlayıcı kurulumu: [docs/backend.md](docs/backend.md).
 
+## Claude ile otomatik düzeltme
+
+Backend'inden yeni bir hata geldiğinde Night Watch bunu üyenin kendi Claude Code bulut görevine iletir. Claude depoyu inceler, düzeltir ve PR açar; sonuç kayda yazılır ve mail ile bildirilir. Kimsenin bilgisayarının açık olması gerekmez. Kurulum, sınırlar ve sorun giderme: [docs/claude.md](docs/claude.md). Bu özellik için `APP_URL` ortam değişkeni zorunludur.
+
 ## Zamanlama
 
 `vercel.json` içindeki cron her gün 05:00 UTC'de (İstanbul 08:00) `/api/cron/daily` adresini çağırır; tüm projeler sırayla yoklanır ve her projenin bildirim adresine ayrı özet gider. Vercel Hobby planında cron günde en fazla bir kez çalışır ve saat içinde gecikebilir; daha sık kontrol için Pro plan gerekir ya da Ayarlar'daki "Şimdi kontrol et" kullanılır.
