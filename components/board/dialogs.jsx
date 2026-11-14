@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Check, ExternalLink, Plus, X } from 'lucide-react';
+import { Check, Copy, ExternalLink, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Pick, Field, OwnerPick, useMe } from './bits';
-import { ST, PR, CAT, ENV, DST, LOG_KINDS, today, day, fmtTime, toLocalInput, safeUrl, parseChecklist, serializeChecklist } from '@/lib/board';
+import { Pick, Field, OwnerPick, useMe, usePeople, ownerLabel } from './bits';
+import { ST, PR, CAT, ENV, DST, LOG_KINDS, today, day, fmtTime, toLocalInput, safeUrl, parseChecklist, serializeChecklist, recordText } from '@/lib/board';
 
 function useForm(initial) {
   const [form, setForm] = useState(initial);
@@ -116,6 +116,26 @@ function Checklist({ value, onChange }) {
   );
 }
 
+// Panoya kopyalar ve düğmede kısa bir onay gösterir.
+function CopyButton({ text, label, done = 'Kopyalandı', className, variant = 'outline', size = 'sm' }) {
+  const [state, setState] = useState('');
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(typeof text === 'function' ? text() : text);
+      setState('ok');
+    } catch {
+      setState('fail');
+    }
+    setTimeout(() => setState(''), 1800);
+  }
+  return (
+    <Button variant={variant} size={size} className={className} onClick={copy} aria-live="polite">
+      {state === 'ok' ? <Check /> : <Copy />}
+      {state === 'ok' ? done : state === 'fail' ? 'Kopyalanamadı' : label}
+    </Button>
+  );
+}
+
 function Footer({ id, onDelete, onClose }) {
   const [sure, setSure] = useState(false);
   return (
@@ -142,6 +162,7 @@ const full = 'sm:col-span-2';
 
 function RecordForm({ item, areas, onSave, onDelete, onClose }) {
   const me = useMe();
+  const people = usePeople();
   const [form, bind, pick] = useForm(
     item || { title: '', category: 'gorev', area: '', owner: me ? me.email : '', status: 'acik', priority: 'orta', env: 'production', sourceUrl: '', createdAt: today(), dueDate: '', errorMessage: '', expectedFix: '', nextAction: '', resolvedAt: '' },
   );
@@ -157,8 +178,16 @@ function RecordForm({ item, areas, onSave, onDelete, onClose }) {
     d.resolvedAt = d.status === 'cozuldu' ? day(form.resolvedAt) || today() : '';
     onSave(d, item && item.id);
   }
+  // Formdaki güncel değerlerle (kaydedilmemiş düzenlemeler dahil) metin üretir.
+  const details = () => recordText({ ...item, ...form }, (o) => ownerLabel(people, o));
   return (
     <form className={grid} onSubmit={submit} noValidate>
+      {item ? (
+        <div className={`${full} flex flex-wrap items-center justify-between gap-2 rounded-md border bg-chrome/60 px-3 py-2`}>
+          <span className="text-[13px] text-muted-foreground">Başlık, hata mesajı, ortam ve tüm alanlar tek metin olarak kopyalanır.</span>
+          <CopyButton text={details} label="Tüm ayrıntıları kopyala" />
+        </div>
+      ) : null}
       <Field label="Başlık" htmlFor="rec-title" className={full}>
         <Input id="rec-title" placeholder="Örn. Ödeme sayfasındaki 500 hatasını düzelt" autoFocus={!item} {...bind('title')} />
         {error ? <span className="text-xs text-crit">{error}</span> : null}
@@ -190,7 +219,8 @@ function RecordForm({ item, areas, onSave, onDelete, onClose }) {
         ) : null}
       </Field>
       <Field label="Hata mesajı" htmlFor="rec-error" className={full}>
-        <Textarea id="rec-error" className="font-mono text-[13px]" {...bind('errorMessage')} />
+        <Textarea id="rec-error" className="min-h-40 font-mono text-[13px]" {...bind('errorMessage')} />
+        {form.errorMessage ? <CopyButton text={() => form.errorMessage} label="Hata mesajını kopyala" variant="ghost" className="w-max px-2 text-muted-foreground" /> : null}
       </Field>
       <Field label="Beklenen çözüm: yapılacaklar" className={full}>
         <Checklist {...pick('expectedFix')} />
