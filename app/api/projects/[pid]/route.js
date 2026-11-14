@@ -57,6 +57,8 @@ export async function DELETE(_req, { params }) {
     await q`DELETE FROM reminders WHERE project_id = ${pid}`;
     await q`DELETE FROM checks WHERE project_id = ${pid}`;
     await q`DELETE FROM logs WHERE project_id = ${pid}`;
+    await q`DELETE FROM claude_links WHERE project_id = ${pid}`;
+    await q`DELETE FROM fix_runs WHERE project_id = ${pid}`;
     await q`DELETE FROM projects WHERE id = ${pid}`;
     return NextResponse.json({ ok: true });
   } catch (e) {
