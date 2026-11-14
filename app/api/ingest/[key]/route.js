@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createHash } from 'node:crypto';
 import { sql, ensureSchema } from '@/lib/db';
 import { today } from '@/lib/util';
 import { sendAlert } from '@/lib/alert';
+import { startFix } from '@/lib/fix';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,16 @@ export async function POST(req, { params }) {
         RETURNING *`;
       row = rows[0];
     }
-    if (status !== 'repeated') await sendAlert(project, [row], req.nextUrl.origin);
+    if (status !== 'repeated') {
+      // Yanıttan sonra çalışır: Claude'u tetiklemek ve mail göndermek hata gönderen backend'i bekletmesin
+      // (nightwatch-node 3 saniyede vazgeçer). Claude önce tetiklenir ki mailde oturum bağlantısı olsun.
+      const origin = req.nextUrl.origin;
+      after(async () => {
+        const fix = await startFix({ project, record: row, trigger: 'otomatik' });
+        const sessions = fix.started && fix.run.sessionUrl ? { [row.id]: fix.run.sessionUrl } : {};
+        await sendAlert(project, [row], origin, { sessions });
+      });
+    }
     return NextResponse.json({ ok: true, id: row.id, status, occurrences: row.occurrences });
   } catch (e) {
     console.error('[ingest]', e && e.message);
