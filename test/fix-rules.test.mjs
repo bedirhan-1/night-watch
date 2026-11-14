@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validFireUrl, validPrUrl, eligible, pickTarget, fireText, routinePrompt, runView, fireRoutine, parseResult } from '../lib/fix-rules.mjs';
+import { validFireUrl, validPrUrl, eligible, pickTarget, fireText, routinePrompt, runView, fireRoutine, parseResult, cleanBase, resultOpen } from '../lib/fix-rules.mjs';
 
 test('validFireUrl', () => {
   assert.equal(validFireUrl('https://api.anthropic.com/v1/claude_code/routines/trig_01ABC/fire'), true);
@@ -100,4 +100,21 @@ test('parseResult', () => {
   assert.equal(parseResult({ status: 'merge' }).ok, false);
   assert.equal(parseResult(null).ok, false);
   assert.equal(parseResult({ status: 'cozulemedi', summary: 'x'.repeat(9000) }).summary.length, 2000);
+});
+test('cleanBase: yalnızca geçerli https adresi', () => {
+  assert.equal(cleanBase('https://nw.example/'), 'https://nw.example');
+  assert.equal(cleanBase(' https://nw.example/app/ '), 'https://nw.example/app');
+  assert.equal(cleanBase('https://'), '');
+  assert.equal(cleanBase('https://nw example.com'), '');
+  assert.equal(cleanBase('http://nw.example'), '');
+  assert.equal(cleanBase(''), '');
+  assert.equal(cleanBase(undefined), '');
+});
+test('resultOpen: zaman aşımına uğrayan ya da geç kalan çalışma da sonuç kabul eder', () => {
+  assert.equal(resultOpen('calisiyor'), true);
+  assert.equal(resultOpen('tetiklenemedi'), true);
+  assert.equal(resultOpen('sonuc_yok'), true);
+  assert.equal(resultOpen('pr'), false);
+  assert.equal(resultOpen('cozulemedi'), false);
+  assert.equal(resultOpen('tamam'), false);
 });

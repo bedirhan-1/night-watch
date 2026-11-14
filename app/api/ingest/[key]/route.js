@@ -6,6 +6,8 @@ import { sendAlert } from '@/lib/alert';
 import { startFix } from '@/lib/fix';
 
 export const dynamic = 'force-dynamic';
+// Yanıttan sonra çalışan iş (Claude tetiklemesi en fazla 8 saniye, ardından mail) yarıda kesilmesin.
+export const maxDuration = 60;
 
 const LEVELS = { critical: 'kritik', fatal: 'kritik', error: 'yuksek', warning: 'orta', warn: 'orta', info: 'dusuk' };
 const ENVS = ['local', 'staging', 'production'];
@@ -53,8 +55,11 @@ export async function POST(req, { params }) {
         INSERT INTO records (project_id, title, category, area, owner, status, priority, env, source_url, error_message, next_action, created_at, updated_at, source, external_id)
         VALUES (${project.id}, ${title}, 'prod', ${area}, ${project.default_owner || ''}, 'acik', ${priority}, ${env}, ${url}, ${message}, '', ${today()}, ${now}, 'backend', ${ext})
         ON CONFLICT (project_id, external_id) DO UPDATE SET occurrences = records.occurrences + 1, updated_at = EXCLUDED.updated_at
-        RETURNING *`;
+        RETURNING *, (xmax = 0) AS inserted`;
       row = rows[0];
+      // Aynı yeni hata aynı anda birkaç kez geldiyse satırı yalnızca biri ekler; diğerleri tekrar sayılır
+      // ki tek hata için birden çok mail ve birden çok Claude oturumu açılmasın.
+      if (!row.inserted) status = 'repeated';
     }
     if (status !== 'repeated') {
       // Yanıttan sonra çalışır: Claude'u tetiklemek ve mail göndermek hata gönderen backend'i bekletmesin
@@ -62,7 +67,7 @@ export async function POST(req, { params }) {
       const origin = req.nextUrl.origin;
       after(async () => {
         const fix = await startFix({ project, record: row, trigger: 'otomatik' });
-        const sessions = fix.started && fix.run.sessionUrl ? { [row.id]: fix.run.sessionUrl } : {};
+        const sessions = fix.started ? { [row.id]: fix.run.sessionUrl || '' } : {};
         await sendAlert(project, [row], origin, { sessions });
       });
     }
