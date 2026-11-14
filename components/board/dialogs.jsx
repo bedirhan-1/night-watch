@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Pick, Field, OwnerPick, useMe, usePeople, ownerLabel } from './bits';
+import { Pick, Field, OwnerPick, FixBadge, useMe, usePeople, ownerLabel } from './bits';
 import { ST, PR, CAT, ENV, DST, LOG_KINDS, today, day, fmtTime, toLocalInput, safeUrl, parseChecklist, serializeChecklist, recordText } from '@/lib/board';
 
 function useForm(initial) {
@@ -157,10 +157,58 @@ function Footer({ id, onDelete, onClose }) {
   );
 }
 
+// Kayıttaki Claude bölümü: son çalışmanın durumu, bağlantılar ve elle tetikleme.
+// onFix kayıt kimliğiyle çağrılır; başarılıysa { sessionUrl }, değilse null döner.
+function ClaudeSection({ item, onFix }) {
+  const [fix, setFix] = useState(item.fix || null);
+  const [busy, setBusy] = useState(false);
+  const running = !!fix && fix.state === 'calisiyor';
+  const pr = fix ? safeUrl(fix.prUrl) : '';
+  const session = fix ? safeUrl(fix.sessionUrl) : '';
+  const note = fix ? fix.summary || fix.error : '';
+  async function start() {
+    setBusy(true);
+    const r = await onFix(item.id);
+    setBusy(false);
+    if (r) setFix({ state: 'calisiyor', sessionUrl: r.sessionUrl || '', prUrl: '', summary: '', error: '' });
+  }
+  const linkCls = 'inline-flex items-center gap-1 text-[13px] text-link hover:underline';
+  return (
+    <div className="flex flex-col gap-2 rounded-md border bg-chrome/60 px-3 py-2.5 sm:col-span-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+          Claude
+          <FixBadge fix={fix} />
+          {!fix ? <span className="text-[13px] font-normal text-muted-foreground">Bu kayıt Claude'a gönderilmedi.</span> : null}
+        </span>
+        <Button variant="outline" size="sm" disabled={busy || running} onClick={start}>
+          {busy ? 'Gönderiliyor…' : fix && !running ? 'Yeniden düzelttir' : "Claude'a düzelttir"}
+        </Button>
+      </div>
+      {pr || session ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {pr ? (
+            <a href={pr} target="_blank" rel="noopener noreferrer" className={linkCls}>
+              PR'ı aç <ExternalLink className="size-3.5" />
+            </a>
+          ) : null}
+          {session ? (
+            <a href={session} target="_blank" rel="noopener noreferrer" className={linkCls}>
+              Oturumu aç <ExternalLink className="size-3.5" />
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {note ? <p className="whitespace-pre-wrap break-words text-[13px] text-muted-foreground">{note}</p> : null}
+      {fix && fix.state === 'sonuc_yok' ? <p className="text-[13px] text-muted-foreground">Claude sonucu bildirmedi. Oturumu açıp bak; bulut ortamında Night Watch alan adına izin verilmemiş olabilir.</p> : null}
+    </div>
+  );
+}
+
 const grid = 'grid gap-x-3 gap-y-3.5 sm:grid-cols-2';
 const full = 'sm:col-span-2';
 
-function RecordForm({ item, areas, onSave, onDelete, onClose }) {
+function RecordForm({ item, areas, onSave, onDelete, onClose, onFix }) {
   const me = useMe();
   const people = usePeople();
   const [form, bind, pick] = useForm(
@@ -188,6 +236,7 @@ function RecordForm({ item, areas, onSave, onDelete, onClose }) {
           <CopyButton text={details} label="Tüm ayrıntıları kopyala" />
         </div>
       ) : null}
+      {item && onFix ? <ClaudeSection item={item} onFix={onFix} /> : null}
       <Field label="Başlık" htmlFor="rec-title" className={full}>
         <Input id="rec-title" placeholder="Örn. Ödeme sayfasındaki 500 hatasını düzelt" autoFocus={!item} {...bind('title')} />
         {error ? <span className="text-xs text-crit">{error}</span> : null}
@@ -352,7 +401,7 @@ const TITLES = {
 };
 
 // dialog: { table: 'records' | 'decisions' | 'reminders', item: düzenlenen satır ya da null }
-export function EditDialog({ dialog, areas, onSave, onDelete, onClose }) {
+export function EditDialog({ dialog, areas, onSave, onDelete, onClose, onFix }) {
   const table = dialog ? dialog.table : 'records';
   const item = dialog ? dialog.item : null;
   const common = { item, onClose, onSave: (data, id) => onSave(table, data, id), onDelete: (id) => onDelete(table, id) };
@@ -360,7 +409,7 @@ export function EditDialog({ dialog, areas, onSave, onDelete, onClose }) {
     <Dialog open={!!dialog} onOpenChange={(o) => !o && onClose()}>
       {dialog ? (
         <DialogContent title={TITLES[table][item ? 1 : 0]} key={table + (item ? item.id : 'new')}>
-          {table === 'records' ? <RecordForm areas={areas} {...common} /> : null}
+          {table === 'records' ? <RecordForm areas={areas} onFix={onFix} {...common} /> : null}
           {table === 'decisions' ? <DecisionForm {...common} /> : null}
           {table === 'reminders' ? <ReminderForm {...common} /> : null}
           {table === 'logs' ? <LogForm {...common} /> : null}
