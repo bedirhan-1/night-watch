@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validFireUrl, validPrUrl, eligible, pickTarget, fireText, routinePrompt, runView, fireRoutine } from '../lib/fix-rules.mjs';
+import { validFireUrl, validPrUrl, eligible, pickTarget, fireText, routinePrompt, runView, fireRoutine, parseResult } from '../lib/fix-rules.mjs';
 
 test('validFireUrl', () => {
   assert.equal(validFireUrl('https://api.anthropic.com/v1/claude_code/routines/trig_01ABC/fire'), true);
@@ -90,4 +90,14 @@ test('fireRoutine', async () => {
   const r2 = await fireRoutine({ fireUrl: 'https://evil.com/fire', token: 't', text: '', fetchFn: async () => { called = true; } });
   assert.equal(called, false);
   assert.equal(r2.ok, false);
+});
+test('parseResult', () => {
+  assert.deepEqual(parseResult({ status: 'pr', pr_url: 'https://github.com/a/b/pull/3', summary: ' düzeltildi ' }), { ok: true, status: 'pr', prUrl: 'https://github.com/a/b/pull/3', summary: 'düzeltildi' });
+  assert.equal(parseResult({ status: 'pr', pr_url: 'https://evil.com/x' }).ok, false);
+  assert.equal(parseResult({ status: 'pr' }).ok, false);
+  assert.equal(parseResult({ status: 'cozulemedi', summary: 'kodla ilgili değil' }).ok, true);
+  assert.equal(parseResult({ status: 'deneme' }).ok, true);
+  assert.equal(parseResult({ status: 'merge' }).ok, false);
+  assert.equal(parseResult(null).ok, false);
+  assert.equal(parseResult({ status: 'cozulemedi', summary: 'x'.repeat(9000) }).summary.length, 2000);
 });
