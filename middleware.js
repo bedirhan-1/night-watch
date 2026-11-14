@@ -6,7 +6,7 @@ const PUBLIC_FILES = /^\/(icon\.svg|apple-icon\.png|opengraph-image\.png|manifes
 
 export function middleware(req) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/cron/') || pathname.startsWith('/api/ingest/')) return NextResponse.next();
+  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/cron/') || pathname.startsWith('/api/ingest/') || pathname.startsWith('/api/fix/')) return NextResponse.next();
   // Logo ve ikon dosyaları giriş yapmadan da açılabilmeli (giriş ekranı, mailler, bağlantı önizlemeleri).
   if (PUBLIC_FILES.test(pathname)) return NextResponse.next();
   if (req.cookies.get(COOKIE)?.value) return NextResponse.next();

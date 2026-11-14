@@ -142,6 +142,18 @@ export default function Board() {
     );
     setBusy(false);
   };
+  // Kayıt penceresi açık kalır; sonuç pencereye döner, liste arkada tazelenir.
+  const fixRecord = async (recordId) => {
+    try {
+      const r = await api('POST', `${base}/records/${recordId}/fix`, {});
+      toast('Kayıt Claude’a gönderildi.');
+      load();
+      return r;
+    } catch (e) {
+      toast(e.message || 'Claude başlatılamadı.');
+      return null;
+    }
+  };
   const logout = async () => {
     await api('POST', '/api/auth/logout', {}).catch(() => {});
     window.location.href = '/login';
@@ -172,6 +184,9 @@ export default function Board() {
         meta={meta}
         busy={busy}
         toast={toast}
+        onSaveClaude={(fireUrl, token) => run(() => api('PUT', `${base}/claude`, { fireUrl, token }), 'Claude bağlandı. “Deneme gönder” ile sınayabilirsin.')}
+        onTestClaude={() => run(() => api('POST', `${base}/claude`, {}), 'Deneme gönderildi. Claude birkaç dakika içinde yanıt verir.')}
+        onRemoveClaude={() => run(() => api('DELETE', `${base}/claude`), 'Claude bağlantısı kaldırıldı.')}
         onRegenIngest={() => run(() => api('POST', `${base}/ingest-key`, {}), 'Adres yenilendi. Backend’indeki adresi güncellemeyi unutma.')}
         onSaveProfile={(f) => run(() => api('PUT', '/api/me', f), 'Profil kaydedildi.')}
         onSaveProject={(f) =>
@@ -257,7 +272,7 @@ export default function Board() {
       </div>
 
       <BottomNav view={view} dueReminders={dueReminders} />
-      <EditDialog dialog={dialog} areas={areas} onSave={save} onDelete={remove} onClose={() => setDialog(null)} />
+      <EditDialog dialog={dialog} areas={areas} onSave={save} onDelete={remove} onFix={fixRecord} onClose={() => setDialog(null)} />
       {toastText ? (
         <div role="status" className="fixed bottom-20 left-1/2 z-[70] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-primary bg-popover px-4 py-2.5 text-sm shadow-xl lg:bottom-6">
           {toastText}

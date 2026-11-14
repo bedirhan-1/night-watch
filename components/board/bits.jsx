@@ -131,6 +131,21 @@ export function SourceBadge({ record }) {
   );
 }
 
+// Claude ile düzeltme durumu. fix: state yanıtındaki record.fix.
+export const FIX_STATE = {
+  calisiyor: ['Claude çalışıyor', 'primary'],
+  pr: ['PR hazır', 'done'],
+  cozulemedi: ['Claude çözemedi', 'high'],
+  tetiklenemedi: ['Claude: başlatılamadı', 'default'],
+  sonuc_yok: ['Claude: sonuç yok', 'default'],
+};
+
+export function FixBadge({ fix }) {
+  const s = fix && FIX_STATE[fix.state];
+  if (!s) return null;
+  return <Badge variant={s[1]}>{s[0]}</Badge>;
+}
+
 const pill = 'inline-flex h-7 items-center gap-1.5 rounded-full border bg-chrome px-2.5 text-xs font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring';
 
 // Tablodan çıkmadan öncelik ya da durum değiştirmek için açılır menü.

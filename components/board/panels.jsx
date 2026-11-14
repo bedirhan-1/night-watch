@@ -306,6 +306,7 @@ export function RemindersPanel({ reminders, onOpen, onNew, onToggle }) {
 // [alan, etiket, tür] — tür: 0 düz metin, 1 gizli tek satır, 2 gizli çok satır, 3 düz çok satır
 const isSecret = (f) => f[2] === 1 || f[2] === 2;
 const EVERY = [['5', '5 dakikada bir'], ['15', '15 dakikada bir'], ['60', 'Saatte bir'], ['360', '6 saatte bir']];
+const FIX_MODES = [['otomatik', 'Otomatik (yeni backend hatalarında)'], ['elle', 'Yalnızca elle'], ['kapali', 'Kapalı']];
 const ALERT_MODES = [['hepsi', 'Yeni her otomatik kayıtta'], ['kritik', 'Yalnızca kritik olanlarda'], ['kapali', 'Gönderme (yalnızca sabah özeti)']];
 const SVCF = {
   http: [['httpUrls', 'Kontrol edilecek adresler (her satıra bir adres)', 3]],
@@ -607,14 +608,144 @@ app.use(nightwatch.expressErrorHandler());`;
   );
 }
 
-export function SettingsPanel({ meta, busy, toast, onRegenIngest, onSaveProfile, onSaveProject, onSaveCreds, onClearCreds, onRun, onMail, onLogout, onDeleteProject }) {
+const TEST_STATE = {
+  calisiyor: 'Deneme gönderildi, Claude yanıtı bekleniyor. Birkaç dakika sonra sayfayı yenile.',
+  tamam: 'Son deneme başarılı: Claude ulaştı ve sonucu bildirdi.',
+  sonuc_yok: 'Son denemede Claude sonuç bildirmedi. Bulut ortamının izinli alan adlarını kontrol et.',
+  tetiklenemedi: 'Son deneme başlatılamadı',
+};
+
+// Üyenin kendi Claude Code bulut görevini projeye bağladığı kart. Herkes yalnızca kendi bağlantısını görür.
+function ClaudeCard({ claude, onSave, onTest, onRemove, toast }) {
+  const [open, setOpen] = useState(false);
+  const [fireUrl, setFireUrl] = useState('');
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const savedUrl = (claude && claude.fireUrl) || '';
+  useEffect(() => {
+    setFireUrl(savedUrl);
+  }, [savedUrl]);
+  if (!claude) return null;
+  async function copy(text, what) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`${what} kopyalandı.`);
+    } catch {
+      toast('Kopyalanamadı.');
+    }
+  }
+  async function act(fn) {
+    setBusy(true);
+    const ok = await fn();
+    setBusy(false);
+    return ok;
+  }
+  const test = claude.lastTest;
+  const stepCls = 'flex items-center justify-between gap-2';
+  return (
+    <div className="rounded-lg border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+            Claude'u bağla
+            {claude.linked ? claude.broken ? <Badge variant="crit">Bağlantı çalışmıyor</Badge> : <Badge variant="done">Bağlı</Badge> : null}
+          </div>
+          <div className="mt-0.5 text-[13px] text-muted-foreground">
+            Backend'inden yeni bir hata geldiğinde kendi Claude'un haberdar olur, depoyu inceler, düzeltir ve PR açar. Bilgisayarının açık olması gerekmez.
+          </div>
+        </div>
+        <Button variant="outline" size="sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? 'Gizle' : claude.linked ? 'Düzenle' : 'Nasıl bağlanır'}
+        </Button>
+      </div>
+      {open && !claude.ready ? (
+        <div className="border-t px-4 py-3.5 text-[13px] text-muted-foreground">
+          Bu özellik için sunucuda <code className="text-foreground">APP_URL</code> ortam değişkeni tanımlı olmalı (örn. https://night-watch.vercel.app). Claude sonucu bu adrese bildirir.
+        </div>
+      ) : null}
+      {open && claude.ready ? (
+        <div className="grid gap-3 border-t px-4 py-3.5 text-[13px]">
+          {claude.broken ? <p className="rounded-md border border-crit/50 bg-crit/10 px-3 py-2 text-crit">Görev son isteği kabul etmedi: {claude.broken}. Adresi ve anahtarı yenile.</p> : null}
+          <p className="leading-relaxed text-muted-foreground">
+            Claude kendi hesabında, bulutta çalışır ve kullanım kendi Claude planından düşer (Pro ve üstü). PR açar; birleştirmez. Kayıt başına en fazla 2 otomatik deneme, proje başına günde en fazla 10.
+          </p>
+          <div>
+            <span className="font-medium">1. Görevi aç</span>
+            <p className="mt-1 text-muted-foreground">
+              <a href="https://claude.ai/code/routines" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-link hover:underline">
+                claude.ai/code/routines <ExternalLink className="size-3.5" />
+              </a>{' '}
+              sayfasında yeni bir görev oluştur ve backend deponu (gerekirse birden çok depo) seç.
+            </p>
+          </div>
+          <div className={stepCls}>
+            <span className="font-medium">2. Talimat olarak şunu yapıştır</span>
+            <Button variant="ghost" size="sm" onClick={() => copy(claude.prompt, 'Talimat')}>
+              <Copy /> Kopyala
+            </Button>
+          </div>
+          <pre className={cn(preCls, 'max-h-56 whitespace-pre-wrap')}>{claude.prompt}</pre>
+          <div className={stepCls}>
+            <span className="font-medium">3. Bulut ortamının izinli alan adlarına şunu ekle</span>
+            <Button variant="ghost" size="sm" onClick={() => copy(claude.host, 'Alan adı')}>
+              <Copy /> Kopyala
+            </Button>
+          </div>
+          <pre className={preCls}>{claude.host}</pre>
+          <p className="text-muted-foreground">Görevde Advanced settings &gt; Cloud environment &gt; ortamın ayarları &gt; Allowed domains. Bu izin olmadan PR yine açılır, ama Claude sonucu Night Watch'a bildiremez.</p>
+          <div>
+            <span className="font-medium">4. API tetikleyicisi ekle</span>
+            <p className="mt-1 text-muted-foreground">Tetikleyici olarak “API” seç ve anahtar üret. Anahtar yalnızca bir kez gösterilir. Adresi ve anahtarı aşağıya yapıştır.</p>
+          </div>
+          <Field label="Tetikleme adresi" htmlFor="claude-url">
+            <Input id="claude-url" className="font-mono text-[12px]" placeholder="https://api.anthropic.com/v1/claude_code/routines/trig_…/fire" value={fireUrl} onChange={(e) => setFireUrl(e.target.value)} />
+          </Field>
+          <Field label="Anahtar" htmlFor="claude-token">
+            <Input id="claude-token" type="password" autoComplete="off" className="font-mono text-[12px]" placeholder={claude.linked ? 'Kayıtlı; değiştirmek için yenisini yaz' : 'sk-ant-oat01-…'} value={token} onChange={(e) => setToken(e.target.value)} />
+            <span className="text-xs text-muted-foreground">Şifreli saklanır ve kaydedildikten sonra bir daha gösterilmez.</span>
+          </Field>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={async () => {
+                if (await act(() => onSave(fireUrl.trim(), token.trim()))) setToken('');
+              }}
+            >
+              Kaydet
+            </Button>
+            {claude.linked ? (
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => act(onTest)}>
+                <Play /> Deneme gönder
+              </Button>
+            ) : null}
+            {claude.linked ? (
+              <Confirm size="sm" confirmText="Emin misin? Kaldır" onConfirm={() => act(onRemove)}>
+                Bağlantıyı kaldır
+              </Confirm>
+            ) : null}
+          </div>
+          {test && TEST_STATE[test.state] ? (
+            <p className="text-muted-foreground">
+              {TEST_STATE[test.state]}
+              {test.state === 'tetiklenemedi' && test.error ? `: ${test.error}` : ''}
+              {test.at ? ` (${fmtTime(test.at)})` : ''}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function SettingsPanel({ meta, busy, toast, onSaveClaude, onTestClaude, onRemoveClaude, onRegenIngest, onSaveProfile, onSaveProject, onSaveCreds, onClearCreds, onRun, onMail, onLogout, onDeleteProject }) {
   const p = meta.project || {};
   const admin = !!meta.admin;
   const creds = meta.credentials || { values: {}, set: {} };
-  const [form, setForm] = useState({ name: '', notifyEmail: '', defaultOwner: '', members: '', alertMode: 'hepsi' });
+  const [form, setForm] = useState({ name: '', notifyEmail: '', defaultOwner: '', members: '', alertMode: 'hepsi', fixMode: 'otomatik' });
   useEffect(() => {
-    setForm({ name: p.name || '', notifyEmail: p.notifyEmail || '', defaultOwner: p.defaultOwner || '', members: p.members || '', alertMode: p.alertMode || 'hepsi' });
-  }, [p.name, p.notifyEmail, p.defaultOwner, p.members, p.alertMode]);
+    setForm({ name: p.name || '', notifyEmail: p.notifyEmail || '', defaultOwner: p.defaultOwner || '', members: p.members || '', alertMode: p.alertMode || 'hepsi', fixMode: p.fixMode || 'otomatik' });
+  }, [p.name, p.notifyEmail, p.defaultOwner, p.members, p.alertMode, p.fixMode]);
   const bind = (k) => ({ value: form[k], onChange: (e) => setForm({ ...form, [k]: e.target.value }) });
   return (
     <div className="flex max-w-3xl flex-col gap-7">
@@ -645,6 +776,10 @@ export function SettingsPanel({ meta, busy, toast, onRegenIngest, onSaveProfile,
               <Pick id="set-alert" className="sm:max-w-sm" value={form.alertMode} onChange={(v) => setForm({ ...form, alertMode: v })} options={ALERT_MODES} />
               <span className="text-xs text-muted-foreground">Backend'inden gelen hatalar ve sık kontrollerin bulduğu sorunlar için. Günde en fazla 20 anında mail gider.</span>
             </Field>
+            <Field label="Claude ile düzeltme" htmlFor="set-fix" className="md:col-span-2">
+              <Pick id="set-fix" className="sm:max-w-sm" value={form.fixMode} onChange={(v) => setForm({ ...form, fixMode: v })} options={FIX_MODES} />
+              <span className="text-xs text-muted-foreground">Üyeler aşağıdaki “Claude'u bağla” kartından kendi Claude'unu bağlar. Kayıt başına en fazla 2 otomatik deneme, günde en fazla 10.</span>
+            </Field>
             <div className="flex flex-wrap items-center gap-3 md:col-span-2">
               <Button type="submit">Kaydet</Button>
               <span className="text-[13px] text-muted-foreground">
@@ -664,6 +799,7 @@ export function SettingsPanel({ meta, busy, toast, onRegenIngest, onSaveProfile,
           </p>
         ) : null}
         {admin ? <IngestCard url={meta.ingestUrl} onRegen={onRegenIngest} toast={toast} /> : null}
+        <ClaudeCard claude={meta.claude} onSave={onSaveClaude} onTest={onTestClaude} onRemove={onRemoveClaude} toast={toast} />
         {(meta.services || []).map((s) => (
           <ServiceCard key={s.key} s={s} admin={admin} creds={creds} onSave={onSaveCreds} onClear={() => onClearCreds(s.key)} />
         ))}

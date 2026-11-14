@@ -5,7 +5,7 @@ import { CalendarDays, Check, ListChecks, Plus, Search, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
-import { usePeople, ownerLabel, Pick, Empty, Avatar, PriorityBadge, StatusBadge, LateBadge, SourceBadge, QuickMenu, priorityStripe } from './bits';
+import { usePeople, ownerLabel, Pick, Empty, Avatar, PriorityBadge, StatusBadge, LateBadge, SourceBadge, FixBadge, QuickMenu, priorityStripe } from './bits';
 import { ST, PR, CAT, SORTS, label, uniq, sortRecs, isDone, isLate, fmt, ago, day, today, presetLabel, checklistProgress } from '@/lib/board';
 
 const seg = 'h-10 w-auto min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 font-medium shadow-none sm:flex-none';
@@ -117,6 +117,7 @@ export function IssueTable({ list, sort, onOpen, onPatch }) {
                 {label(CAT, r.category)}
                 <LateBadge record={r} />
                 <SourceBadge record={r} />
+                <FixBadge fix={r.fix} />
               </span>
               <span className="mt-1 flex items-start gap-2">
                 <span className={cn('mt-[3px] h-4 w-1 shrink-0 rounded-full', priorityStripe(r))} />
@@ -217,6 +218,7 @@ function Card({ r, onOpen, onPatch }) {
         <span className="flex flex-wrap gap-1.5">
           <LateBadge record={r} />
           <SourceBadge record={r} />
+          <FixBadge fix={r.fix} />
           {r.category !== 'gorev' ? <Badge>{label(CAT, r.category)}</Badge> : null}
         </span>
       ) : null}
@@ -395,6 +397,7 @@ export function TimelineView({ list, onOpen }) {
                     <PriorityBadge priority={e.r.priority} />
                     <StatusBadge status={e.r.status} />
                     <SourceBadge record={e.r} />
+                    <FixBadge fix={e.r.fix} />
                   </span>
                 </button>
               ))}

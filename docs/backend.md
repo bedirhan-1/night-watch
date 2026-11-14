@@ -63,6 +63,10 @@ Aynı `fingerprint` tek bir kayıtta toplanır:
 
 Paket bunu kendisi ayarlar. Doğrudan HTTP kullanıyorsan, başlığında değişken bilgi olan hatalarda (kullanıcı kimliği, istek numarası) sabit bir `fingerprint` gönder; yoksa her hata ayrı kayıt olur.
 
+### Hatayı Claude'a düzelttirme
+
+Gelen hatalar üyenin kendi Claude'una iletilebilir; Claude düzeltip PR açar. Kurulum: [claude.md](claude.md).
+
 ## Sağlık kontrolü
 
 Ayarlar'da "Backend sağlık kontrolü" kartına, servis ayaktayken 200 dönen ve giriş gerektirmeyen adresleri yaz (örn. `https://api.ornek.com/health`). Night Watch her kontrolde bu adreslere istek atar:
